@@ -1,0 +1,13 @@
+canon:
+   publisher: canon-protocol.org
+   package: registry-metadata
+   version: 1.0.0
+
+ canon-protocol-registry:
+   type: RegistryMetadata
+   registry: ghcr.io
+   namespace: canon-protocol
+   scheme: https
+   ttl: 3600
+   description: Canon Protocol official packages
+   contactUrl: https://canon-protocol.org
