@@ -1,0 +1,337 @@
+# Package declaration
+protocols-canon:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.1
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: protocol
+          match: ^
+          version: 1.0.1
+
+# ========================================
+# CANON URI STRUCTURE
+# ========================================
+
+CanonUriStructure:
+  type: CanonSegmentConvention
+  segmentPart: uri
+  conventionSummary: Canon URIs uniquely identify entities using the format publisher/package@version/name
+  hasConventionRules:
+    - CanonUriFormatRule
+    - CanonUriUniquenessRule
+  hasConventionExamples:
+    - ValidCanonUriExample
+    - InvalidCanonUriExample
+
+CanonUriFormatRule:
+  type: RequiredRule
+  text: Canon URIs MUST follow the format publisher/package@version/name where all components are required
+  rationale: Standardized URI format ensures global uniqueness and enables automatic resolution across namespaces and package registries
+
+CanonUriUniquenessRule:
+  type: RequiredRule
+  text: Each Canon URI MUST uniquely identify exactly one entity across the entire Canon ecosystem
+  rationale: Guarantees unambiguous entity references and prevents naming conflicts through publisher namespacing
+
+ValidCanonUriExample:
+  type: ValidExample
+  value: canon-protocol.org/core-rdf@1.0.0/Class
+  description: Valid Canon URI referencing the Class entity from the core-rdf package
+
+InvalidCanonUriExample:
+  type: InvalidExample
+  value: mypackage/Entity
+  description: Invalid - missing publisher domain and version components
+
+# ========================================
+# PUBLISHER NAMING CONVENTIONS
+# ========================================
+
+PublisherNamingConvention:
+  type: CanonSegmentConvention
+  segmentPart: publisher
+  conventionSummary: Publishers must be domain-based identifiers to establish ownership and enable registry discovery
+  hasConventionRules:
+    - PublisherDomainRequirement
+    - PublisherOwnershipRule
+  hasConventionExamples:
+    - ValidPublisherExample1
+    - ValidPublisherExample2
+    - InvalidPublisherExample
+
+PublisherDomainRequirement:
+  type: RequiredRule
+  text: Publisher identifiers MUST be valid domain names containing at least one dot character
+  rationale: Domain-based publishers establish clear organizational ownership, enable automatic registry discovery via .well-known endpoints, and prevent naming conflicts through DNS
+
+PublisherOwnershipRule:
+  type: RequiredRule
+  text: Publishers MUST control the domain name used in their publisher identifier
+  rationale: Ensures authenticity and prevents namespace squatting by requiring verifiable domain ownership
+
+ValidPublisherExample1:
+  type: ValidExample
+  value: canon-protocol.org
+  description: Official Canon Protocol publisher using a .org domain
+
+ValidPublisherExample2:
+  type: ValidExample
+  value: acme.com
+  description: Company publisher using a .com domain
+
+InvalidPublisherExample:
+  type: InvalidExample
+  value: myproject
+  description: Invalid - not a domain name. Must use domain-based identifier like myproject.org or myproject.dev
+
+# ========================================
+# PACKAGE NAMING CONVENTIONS
+# ========================================
+
+PackageNamingConvention:
+  type: CanonSegmentConvention
+  segmentPart: package
+  conventionSummary: Package names identify collections of related entities within a publisher namespace
+  hasConventionRules:
+    - PackageFormatRule
+    - PackageHierarchyRule
+  hasConventionExamples:
+    - ValidPackageExample1
+    - ValidPackageExample2
+    - InvalidPackageExample
+
+PackageFormatRule:
+  type: RequiredRule
+  text: Package names MUST start with a lowercase letter and contain only lowercase letters, numbers, and hyphens (no periods)
+  rationale: Lowercase with hyphens ensures compatibility with file systems, URLs, and OCI registries while maintaining readability. Periods are reserved for alias.resource reference syntax.
+
+PackageHierarchyRule:
+  type: RecommendedRule
+  text: Use hyphen notation to create descriptive package names for related ontologies
+  rationale: Hyphen notation enables logical grouping of related packages while avoiding conflicts with alias.resource reference syntax
+
+ValidPackageExample1:
+  type: ValidExample
+  value: core-rdf
+  description: Core RDF vocabulary using hyphen notation
+
+ValidPackageExample2:
+  type: ValidExample
+  value: travel-schema
+  description: Travel domain schema using hyphens for multi-word readability
+
+InvalidPackageExample:
+  type: InvalidExample
+  value: MyPackage
+  description: Invalid - contains uppercase letters. Must use lowercase only
+
+# ========================================
+# VERSION CONVENTIONS
+# ========================================
+
+VersionConvention:
+  type: CanonSegmentConvention
+  segmentPart: version
+  conventionSummary: Versions follow semantic versioning to communicate compatibility and breaking changes
+  hasConventionRules:
+    - SemanticVersioningRule
+    - MajorVersionBreakingRule
+    - MinorVersionCompatibleRule
+  hasConventionExamples:
+    - ValidVersionExample
+    - InvalidVersionExample
+
+SemanticVersioningRule:
+  type: RequiredRule
+  text: Versions MUST follow semantic versioning format major.minor.patch where each component is a non-negative integer
+  rationale: Semantic versioning provides a standard way to communicate backward compatibility and breaking changes to package consumers
+
+MajorVersionBreakingRule:
+  type: RequiredRule
+  text: Increment major version when making backward-incompatible changes to the package
+  rationale: Major version increments signal to consumers that manual migration may be required due to breaking changes
+
+MinorVersionCompatibleRule:
+  type: RequiredRule
+  text: Increment minor version when adding backward-compatible functionality and patch version for backward-compatible bug fixes
+  rationale: Allows consumers to safely update within the same major version while preventing unexpected breaking changes
+
+ValidVersionExample:
+  type: ValidExample
+  value: 2.1.3
+  description: Valid semantic version with major 2, minor 1, patch 3
+
+InvalidVersionExample:
+  type: InvalidExample
+  value: v1.0
+  description: Invalid - missing patch component and has v prefix. Must be 1.0.0
+
+# ========================================
+# IMPORT OPERATOR CONVENTIONS
+# ========================================
+
+ImportOperatorConvention:
+  type: CanonSegmentConvention
+  segmentPart: imports
+  conventionSummary: Import operators control version compatibility ranges for package dependencies
+  hasConventionRules:
+    - ExactOperatorRule
+    - CompatibleOperatorRule
+    - MajorOperatorRule
+    - AnyOperatorRule
+  hasConventionExamples:
+    - ExactOperatorExample
+    - CompatibleOperatorExample
+    - MajorOperatorExample
+
+ExactOperatorRule:
+  type: RequiredRule
+  text: Use exact version operator (=) to lock imports to a specific version for reproducible builds
+  rationale: Exact version matching guarantees reproducible builds and prevents unexpected breaking changes from dependency updates
+
+CompatibleOperatorRule:
+  type: RecommendedRule
+  text: Use compatible version operator (~) to allow patch updates within the same minor version
+  rationale: Enables bug fixes and security patches while preventing breaking changes from minor version updates
+
+MajorOperatorRule:
+  type: RecommendedRule
+  text: Use major version operator (^) to allow minor and patch updates within the same major version
+  rationale: Follows semantic versioning conventions where breaking changes only occur in major version increments
+
+AnyOperatorRule:
+  type: ForbiddenRule
+  text: Avoid any version operator (*) in production packages as it allows all future versions including breaking changes
+  rationale: Creates unpredictable behavior and can introduce breaking changes without warning or control
+
+ExactOperatorExample:
+  type: ValidExample
+  value: core-rdf = 1.0.0
+  description: Locks to exactly version 1.0.0 of core-rdf
+
+CompatibleOperatorExample:
+  type: ValidExample
+  value: common ~ 1.2.3
+  description: Allows versions 1.2.3 through 1.2.x (patch updates only)
+
+MajorOperatorExample:
+  type: ValidExample
+  value: ui ^ 1.0.0
+  description: Allows versions 1.0.0 through 1.x.x (minor and patch updates within major version 1)
+
+# ========================================
+# VERSION RESOLUTION ALGORITHM
+# ========================================
+
+VersionResolutionConvention:
+  type: CanonSegmentConvention
+  segmentPart: version-resolution
+  conventionSummary: Version resolution selects the highest compatible version from available packages
+  hasConventionRules:
+    - VersionResolutionAlgorithmRule
+    - MajorZeroSpecialCaseRule
+  hasConventionExamples:
+    - VersionResolutionExample
+
+VersionResolutionAlgorithmRule:
+  type: RequiredRule
+  text: When resolving an import, Canon selects the highest version that satisfies the version operator constraints
+  rationale: Automatic version resolution ensures packages get the latest compatible updates while respecting semantic versioning constraints. This enables bug fixes and patches without manual intervention while preventing breaking changes.
+
+MajorZeroSpecialCaseRule:
+  type: RequiredRule
+  text: For major version 0 (pre-1.0), the caret operator (^) behaves like tilde (~) allowing only patch updates
+  rationale: Semantic versioning treats 0.x.y as unstable where breaking changes can occur in minor versions. Caret operator for ^0.x.y allows only patches (0.x.z) to prevent unexpected breaking changes during pre-release development.
+
+VersionResolutionExample:
+  type: ValidExample
+  value: |
+    Import: "classes ~ 1.2.3"
+    Available: 1.2.1, 1.2.5, 1.3.0, 2.0.0
+    Constraints: MinVersion=1.2.3, MaxVersion=1.2.999
+    Selected: 1.2.5 (highest in compatible range)
+  description: Version resolution selects 1.2.5 as highest compatible patch version
+
+# ========================================
+# FILE NAMING CONVENTIONS
+# ========================================
+
+FileNamingConvention:
+  type: CanonSegmentConvention
+  segmentPart: file-naming
+  conventionSummary: Canon documents follow a standard file naming pattern for discoverability
+  hasConventionRules:
+    - CanonicalFileNameRule
+    - DirectoryStructureRule
+  hasConventionExamples:
+    - FileNamingExample1
+    - FileNamingExample2
+
+CanonicalFileNameRule:
+  type: RequiredRule
+  text: Canon document files MUST be named using the pattern publisher/package@version.can.yml
+  rationale: Standardized file naming enables automatic discovery, prevents conflicts, and makes the namespace structure visible in the file system. The .can.yml extension distinguishes Canon files from other YAML files.
+
+DirectoryStructureRule:
+  type: RecommendedRule
+  text: Canon documents SHOULD be organized in directories matching the publisher name
+  rationale: Directory structure mirrors namespace organization making it easy to locate packages and understand ownership. Publisher directories prevent naming conflicts and enable per-publisher configuration.
+
+FileNamingExample1:
+  type: ValidExample
+  value: canon-protocol.org/core-rdf@1.0.0.can.yml
+  description: Correct file naming with publisher directory and version
+
+FileNamingExample2:
+  type: ValidExample
+  value: mycompany.com/products@2.1.3.can.yml
+  description: Company package with semantic version
+
+# ========================================
+# YAML PARSING CONVENTIONS
+# ========================================
+
+YamlParsingConvention:
+  type: CanonSegmentConvention
+  segmentPart: yaml-parsing
+  conventionSummary: Canon YAML parsing preserves types and detects structural errors
+  hasConventionRules:
+    - TypePreservationRule
+    - DuplicateKeyDetectionRule
+    - Utf8BomHandlingRule
+  hasConventionExamples:
+    - TypePreservationExample
+    - DuplicateKeyExample
+
+TypePreservationRule:
+  type: RequiredRule
+  text: Canon YAML parser MUST preserve primitive types (integer, boolean, string) from YAML into the Canon object model
+  rationale: Type preservation ensures that integer values remain integers, booleans remain booleans, and strings remain strings through the parse-serialize round-trip. This maintains semantic meaning and enables accurate code generation.
+
+DuplicateKeyDetectionRule:
+  type: RequiredRule
+  text: Canon YAML parser MUST detect and report duplicate keys with line and column information
+  rationale: Duplicate keys in YAML are ambiguous and indicate authoring errors. Early detection with precise location information helps users quickly fix structural problems before semantic validation.
+
+Utf8BomHandlingRule:
+  type: RequiredRule
+  text: Canon YAML parser MUST strip UTF-8 BOM (Byte Order Mark) if present for cross-platform compatibility
+  rationale: Windows editors may add UTF-8 BOM (\\uFEFF) at file start. Stripping BOM ensures files created on Windows parse correctly on Linux/Mac and vice versa, enabling seamless cross-platform collaboration.
+
+TypePreservationExample:
+  type: ValidExample
+  value: |
+    age: 30        # → Parsed as integer (not string "30")
+    isActive: true # → Parsed as boolean (not string "true")
+    name: "Alice"  # → Parsed as string
+  description: YAML types preserved through parsing
+
+DuplicateKeyExample:
+  type: InvalidExample
+  value: |
+    Person:
+      name: "Alice"
+      name: "Bob"  # ❌ ERROR: Duplicate key 'name'
+  description: Parser detects duplicate keys and reports error with line number

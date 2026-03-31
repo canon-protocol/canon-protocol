@@ -1,0 +1,17 @@
+name: Update Canon Index
+
+on:
+  push:
+    branches: [main]
+    paths: ['**/*.can.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: canon-protocol/index-action@v1

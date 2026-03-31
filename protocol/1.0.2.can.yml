@@ -1,0 +1,105 @@
+# Package declaration
+protocol:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.2
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: core-rdf
+          match: ^
+          version: 1.0.1
+          alias: rdfs
+        - package: common
+          match: ^
+          version: 1.0.1
+
+RequiredRule:
+  type: rdfs.Class
+  label: Required Rule
+  comment: A mandatory convention rule
+  subClassOf: ConventionRule
+ConventionRule:
+  type: rdfs.Class
+  label: Convention Rule
+  comment: Base class for all convention rules
+  subClassOf: Resource
+ConventionExample:
+  type: rdfs.Class
+  label: Convention Example
+  comment: Base class for all examples
+  subClassOf: Resource
+
+text:
+  type: DatatypeProperty
+  label: Rule Text
+  comment: The text of a convention rule
+  domain: ConventionRule
+  range: string
+rationale:
+  type: DatatypeProperty
+  label: Rule Rationale
+  comment: The rationale explaining why a convention rule exists
+  domain: ConventionRule
+  range: string
+value:
+  type: DatatypeProperty
+  label: Example Value
+  comment: The example value demonstrating a convention
+  domain: ConventionExample
+  range: string
+description:
+  type: DatatypeProperty
+  label: Example Description
+  comment: Description explaining what the example demonstrates
+  domain: ConventionExample
+  range: string
+RecommendedRule:
+  type: rdfs.Class
+  label: Recommended Rule
+  comment: A suggested rule
+  subClassOf: ConventionRule
+ForbiddenRule:
+  type: rdfs.Class
+  label: Forbidden Rule
+  comment: A prohibited rule
+  subClassOf: ConventionRule
+ValidExample:
+  type: rdfs.Class
+  label: Valid Example
+  comment: An example that follows convention
+  subClassOf: ConventionExample
+InvalidExample:
+  type: rdfs.Class
+  label: Invalid Example
+  comment: An example that violates convention
+  subClassOf: ConventionExample
+CanonSegmentConvention:
+  type: rdfs.Class
+  label: Canon Segment Convention
+  comment: Naming convention for Canon URI segments
+  subClassOf: Resource
+segmentPart:
+  type: DatatypeProperty
+  label: Segment Part
+  comment: The URI segment component this convention applies to (e.g., publisher, package, version)
+  domain: CanonSegmentConvention
+  range: string
+conventionSummary:
+  type: DatatypeProperty
+  label: Convention Summary
+  comment: Brief summary of the naming convention being defined
+  domain: CanonSegmentConvention
+  range: string
+hasConventionRules:
+  type: ObjectProperty
+  label: Has Convention Rules
+  comment: The convention rules that define requirements for this segment
+  domain: CanonSegmentConvention
+  range: ConventionRule
+hasConventionExamples:
+  type: ObjectProperty
+  label: Has Convention Examples
+  comment: Examples demonstrating valid and invalid uses of this convention
+  domain: CanonSegmentConvention
+  range: ConventionExample

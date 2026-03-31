@@ -1,0 +1,147 @@
+# Package declaration
+education:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.1
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: core-rdf
+          match: ^
+          version: 1.0.1
+          alias: rdfs
+        - package: core-xsd
+          match: ^
+          version: 1.0.1
+        - package: ui
+          match: ^
+          version: 1.0.1
+
+# ========================================
+# EDUCATIONAL CONTENT TYPES
+# ========================================
+
+Tutorial:
+  type: rdfs.Class
+  label: Tutorial
+  comment: Step-by-step instructional content progressing from simple to complex concepts
+  subClassOf: rdfs.Resource
+
+ConceptualModel:
+  type: rdfs.Class
+  label: Conceptual Model
+  comment: High-level mental model explaining system architecture or fundamental concepts
+  subClassOf: rdfs.Resource
+
+TechnicalExplanation:
+  type: rdfs.Class
+  label: Technical Explanation
+  comment: Deep-dive into technical mechanics and implementation details
+  subClassOf: rdfs.Resource
+
+LearningPath:
+  type: rdfs.Class
+  label: Learning Path
+  comment: Ordered sequence of tutorials and concepts for progressive learning
+  subClassOf: rdfs.Resource
+
+# ========================================
+# TUTORIAL SUPPORT TYPES
+# ========================================
+
+TutorialStep:
+  type: rdfs.Class
+  label: Tutorial Step
+  comment: Single step in a tutorial with explanation and example
+  subClassOf: rdfs.Resource
+
+CodeExample:
+  type: rdfs.Class
+  label: Code Example
+  comment: Concrete code sample demonstrating a concept or pattern
+  subClassOf: rdfs.Resource
+
+# ========================================
+# EDUCATIONAL PROPERTIES
+# ========================================
+
+title:
+  type: DatatypeProperty
+  label: Title
+  comment: Short descriptive title for educational content
+  domain: rdfs.Resource
+  range: string
+
+content:
+  type: DatatypeProperty
+  label: Content
+  comment: Markdown-formatted educational content with explanations
+  domain: rdfs.Resource
+  range: string
+
+codeSnippet:
+  type: DatatypeProperty
+  label: Code Snippet
+  comment: Code sample in YAML, C#, TypeScript, or other language
+  domain: CodeExample
+  range: string
+
+language:
+  type: DatatypeProperty
+  label: Programming Language
+  comment: Language identifier (yaml, csharp, typescript, rust, etc)
+  domain: CodeExample
+  range: string
+
+difficulty:
+  type: DatatypeProperty
+  label: Difficulty Level
+  comment: Learning difficulty level (Beginner, Intermediate, Advanced)
+  domain: rdfs.Resource
+  range: string
+
+stepNumber:
+  type: DatatypeProperty
+  label: Step Number
+  comment: Numeric order of this step in the tutorial sequence
+  domain: TutorialStep
+  range: integer
+
+# ========================================
+# EDUCATIONAL RELATIONSHIPS
+# ========================================
+
+hasSteps:
+  type: ObjectProperty
+  label: Has Steps
+  comment: Ordered list of tutorial steps that comprise this tutorial
+  domain: Tutorial
+  range: TutorialStep
+
+hasExample:
+  type: ObjectProperty
+  label: Has Example
+  comment: Code example demonstrating this concept or step
+  domain: rdfs.Resource
+  range: CodeExample
+
+hasDiagram:
+  type: ObjectProperty
+  label: Has Diagram
+  comment: Visual diagram illustrating this concept
+  domain: rdfs.Resource
+  range: VisualDepiction
+
+prerequisite:
+  type: ObjectProperty
+  label: Prerequisite
+  comment: Required prior knowledge, tutorial, or concept needed before this content
+  domain: rdfs.Resource
+  range: rdfs.Resource
+
+nextInPath:
+  type: ObjectProperty
+  label: Next In Path
+  comment: Next educational resource in the learning path
+  domain: rdfs.Resource
+  range: rdfs.Resource

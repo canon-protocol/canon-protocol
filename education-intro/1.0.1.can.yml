@@ -1,0 +1,185 @@
+# Package declaration
+education-intro:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.1
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: education
+          match: ^
+          version: 1.0.1
+        - package: core-rdf
+          match: ^
+          version: 1.0.1
+          alias: rdfs
+
+# ========================================
+# WHAT IS CANON PROTOCOL?
+# ========================================
+
+WhatIsCanon:
+  type: ConceptualModel
+  title: What is Canon Protocol?
+  difficulty: Beginner
+  content: |
+    # Canon Protocol: Semantic Data Modeling with YAML
+
+    Canon is a system for defining **versioned ontologies** (schemas) that describe
+    the structure and relationships of data. Think of it as:
+
+    - **Like RDF/OWL** - Semantic web standards for knowledge representation
+    - **But in YAML** - Human-friendly syntax instead of XML/Turtle
+    - **With versioning** - Semantic versioning built-in from day one
+    - **Package-based** - Reusable, publishable, importable schemas
+
+    ## Key Mental Model
+
+    Canon transforms YAML documents into RDF triples, enabling semantic interoperability
+    while maintaining a developer-friendly authoring experience.
+
+    ## Core Abstraction
+
+    Everything in Canon is a **Resource** with **relationships** to other Resources.
+    Classes, Properties, and Instances are all Resources connected through typed relationships.
+  nextInPath: ThreeLayers
+
+# ========================================
+# CANON'S THREE LAYERS
+# ========================================
+
+ThreeLayers:
+  type: ConceptualModel
+  title: Canon's Three Layers
+  difficulty: Beginner
+  prerequisite: WhatIsCanon
+  content: |
+    # The Three Layers of Canon
+
+    Canon operates across three distinct layers, each serving a specific purpose:
+
+    ## 1. DOCUMENT LAYER (YAML)
+
+    This is what you write as an ontology author:
+    - `.can.yml` files in human-friendly YAML format
+    - Metadata section (publisher, package, version, imports)
+    - Body section (class and property definitions, instances)
+
+    **Example:**
+    ```yaml
+    products:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0
+
+    Product:
+      type: Class
+      label: Product
+    ```
+
+    ## 2. OBJECT LAYER (Semantic Graph)
+
+    This is what Canon understands internally:
+    - RDF triples (Subject-Predicate-Object)
+    - Semantic relationships between entities
+    - Cross-namespace entity resolution
+    - Type inference and validation
+
+    The YAML is parsed into a graph structure where every statement becomes a triple.
+
+    ## 3. CODE LAYER (Target Language)
+
+    This is what you generate for applications:
+    - TypeScript, C#, Rust interfaces/classes
+    - Type-safe code with compile-time validation
+    - NPM/NuGet packages for easy consumption
+
+    **Example (TypeScript):**
+    ```typescript
+    export interface Product {
+      // Generated from Canon definition
+    }
+    ```
+
+    ## The Flow
+
+    YAML Document → RDF Graph → Typed Code
+
+    Each layer adds value:
+    - YAML = Human authoring
+    - RDF = Machine understanding
+    - Code = Application integration
+  nextInPath: FoundationVocabularies
+
+# ========================================
+# FOUNDATION VOCABULARIES
+# ========================================
+
+FoundationVocabularies:
+  type: ConceptualModel
+  title: Canon's Foundation Vocabularies
+  difficulty: Beginner
+  prerequisite: ThreeLayers
+  content: |
+    # Built-In Vocabularies
+
+    Canon provides several foundational vocabularies that you'll use constantly:
+
+    ## core-rdf (RDF Basics)
+
+    Fundamental RDF concepts:
+    - **Resource** - The base class for everything
+    - **Class** - Types of entities
+    - **Property** - Relationships and attributes
+    - **type** - Declares that an entity is an instance of a class
+    - **label**, **comment** - Human-readable descriptions
+    - **domain**, **range** - Property constraints
+    - **subClassOf**, **subPropertyOf** - Inheritance relationships
+
+    **Import:** `core-rdf = 1.0.0 as rdfs`
+
+    ## core-xsd (XML Schema Datatypes)
+
+    Primitive data types:
+    - **string** - Text values
+    - **integer**, **decimal**, **float**, **double** - Numbers
+    - **boolean** - True/false values
+    - **date**, **time**, **dateTime** - Temporal values
+    - **anyURI** - URI references
+
+    **Import:** `core-xsd = 1.0.0`
+
+    ## core-owl (OWL Ontology Language)
+
+    Advanced semantic features:
+    - **ObjectProperty** - Properties that reference other entities
+    - **DatatypeProperty** - Properties that hold primitive values
+    - **FunctionalProperty** - At most one value per entity
+    - **TransitiveProperty**, **SymmetricProperty** - Special property types
+    - **Restriction** - Property constraints (cardinality, value restrictions)
+
+    **Import:** `core-owl = 2.0.0`
+
+    ## Typical Import Pattern
+
+    ```yaml
+    mypackage:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0
+      imports:
+        - publisher: canon-protocol.org
+          packages:
+            - package: core-rdf
+              match: ^
+              version: 1.0.1
+              alias: rdfs
+            - package: core-xsd
+              match: ^
+              version: 1.0.1
+            - package: core-owl
+              match: ^
+              version: 2.0.1
+    ```
+
+    Now you can reference `rdfs.Class`, `string`, `ObjectProperty`, etc.

@@ -1,0 +1,109 @@
+# Package declaration
+patterns:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.1
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: core-rdf
+          match: ^
+          version: 1.0.1
+          alias: rdfs
+        - package: core-xsd
+          match: ^
+          version: 1.0.1
+        - package: education
+          match: ^
+          version: 1.0.1
+
+# ========================================
+# DESIGN PATTERN TYPES
+# ========================================
+
+DesignPattern:
+  type: rdfs.Class
+  label: Design Pattern
+  comment: Reusable solution to a common problem in Canon ontology design
+  subClassOf: rdfs.Resource
+
+ModelingPattern:
+  type: rdfs.Class
+  label: Modeling Pattern
+  comment: Pattern for structuring classes, properties, and relationships
+  subClassOf: DesignPattern
+
+ImportPattern:
+  type: rdfs.Class
+  label: Import Pattern
+  comment: Pattern for organizing and structuring package imports
+  subClassOf: DesignPattern
+
+VersioningPattern:
+  type: rdfs.Class
+  label: Versioning Pattern
+  comment: Pattern for managing ontology versions and evolution over time
+  subClassOf: DesignPattern
+
+DataPattern:
+  type: rdfs.Class
+  label: Data Pattern
+  comment: Pattern for organizing and structuring instance data
+  subClassOf: DesignPattern
+
+# ========================================
+# PATTERN PROPERTIES
+# ========================================
+
+problem:
+  type: DatatypeProperty
+  label: Problem
+  comment: The problem or challenge this pattern addresses
+  domain: DesignPattern
+  range: string
+
+solution:
+  type: DatatypeProperty
+  label: Solution
+  comment: How the pattern solves the problem
+  domain: DesignPattern
+  range: string
+
+consequences:
+  type: DatatypeProperty
+  label: Consequences
+  comment: Trade-offs, benefits, and limitations of using this pattern
+  domain: DesignPattern
+  range: string
+
+whenToUse:
+  type: DatatypeProperty
+  label: When To Use
+  comment: Scenarios where this pattern is appropriate and recommended
+  domain: DesignPattern
+  range: string
+
+whenNotToUse:
+  type: DatatypeProperty
+  label: When Not To Use
+  comment: Scenarios where this pattern should be avoided or alternative approaches preferred
+  domain: DesignPattern
+  range: string
+
+# ========================================
+# PATTERN RELATIONSHIPS
+# ========================================
+
+relatedPattern:
+  type: ObjectProperty
+  label: Related Pattern
+  comment: Other patterns that often appear together with this pattern or address similar problems
+  domain: DesignPattern
+  range: DesignPattern
+
+alternativePattern:
+  type: ObjectProperty
+  label: Alternative Pattern
+  comment: Alternative pattern that solves the same problem with different trade-offs
+  domain: DesignPattern
+  range: DesignPattern

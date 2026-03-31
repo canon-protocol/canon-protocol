@@ -1,0 +1,1072 @@
+# Package declaration
+workflows:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.2
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: education
+          match: ^
+          version: 1.0.1
+        - package: protocol
+          match: ^
+          version: 1.0.1
+
+# ========================================
+# WORKFLOWS OVERVIEW
+# ========================================
+
+WorkflowsOverview:
+  type: ConceptualModel
+  title: Canon Development Workflows
+  difficulty: Beginner
+  content: |
+    # Canon Development Workflows
+
+    This guide covers the practical day-to-day workflows for working with Canon Protocol.
+
+    ## Key Workflows
+
+    ### 1. Project Setup Workflow
+    - Initialize a new Canon workspace
+    - Configure package structure
+    - Set up dependency management
+
+    ### 2. Development Workflow
+    - Create and edit Canon documents
+    - Run validation during development
+    - Iterate on ontology design
+
+    ### 3. Code Generation Workflow
+    - Export Canon to TypeScript/C#/Rust
+    - Integrate generated code into applications
+    - Regenerate after schema changes
+
+    ### 4. Publishing Workflow
+    - Prepare packages for publication
+    - Version bumping strategies
+    - Publish to OCI registries
+
+    ## Workflow Philosophy
+
+    Canon follows a **design-first** approach:
+    1. Design your ontology (data model)
+    2. Validate semantics
+    3. Generate code for your target language
+    4. Use generated types in your application
+
+    This ensures your data model is correct BEFORE you write application code.
+
+# ========================================
+# PROJECT SETUP WORKFLOW
+# ========================================
+
+ProjectSetupWorkflow:
+  type: Tutorial
+  title: Setting Up a New Canon Project
+  difficulty: Beginner
+  prerequisite: WorkflowsOverview
+  content: |
+    # Setting Up a New Canon Project
+
+    ## Step 1: Create Workspace Directory
+
+    ```bash
+    # Create your project directory
+    mkdir my-canon-project
+    cd my-canon-project
+
+    # Create specs directory for Canon documents
+    mkdir -p specs/mycompany.com
+    ```
+
+    ## Step 2: Create Your First Package
+
+    Create `specs/mycompany.com/myapp@1.0.0.can.yml`:
+
+    ```yaml
+    myapp:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0
+      imports:
+        - publisher: canon-protocol.org
+          packages:
+            - package: core-rdf
+              match: ^
+              version: 1.0.1
+              alias: rdfs
+
+    # Your entities go here
+    Person:
+      type: rdfs.Class
+      label: Person
+      comment: Represents a person in the system
+    ```
+
+    ## Step 3: Validate Your Package
+
+    ```bash
+    # From specs directory
+    canon validate
+    ```
+
+    Expected output:
+    ```
+    ✓ All documents in the repository are valid!
+    ```
+
+    ## Step 4: Directory Structure
+
+    Recommended structure:
+
+    ```
+    my-canon-project/
+    ├── specs/                    # Canon ontology documents
+    │   └── mycompany.com/
+    │       └── myapp@1.0.0.can.yml
+    ├── .canon/                   # Package cache (auto-created)
+    │   └── packages/
+    ├── generated/                # Generated code output
+    │   ├── typescript/
+    │   └── csharp/
+    └── src/                      # Your application code
+        └── index.ts
+    ```
+
+    ## Step 5: Initialize Package Cache
+
+    The `.canon/` directory is automatically created when you first run validation.
+    It caches imported packages for faster resolution.
+
+    ```bash
+    # Validation automatically initializes cache
+    canon validate
+    ```
+
+ProjectSetupChecklist:
+  type: CodeExample
+  title: Project Setup Checklist
+  language: markdown
+  codeSnippet: |
+    ## New Project Checklist
+
+    - [ ] Create workspace directory
+    - [ ] Create `specs/{publisher}/` directory structure
+    - [ ] Create first `.can.yml` file with canon metadata
+    - [ ] Add at least one entity (Class or Property)
+    - [ ] Run `canon validate`
+    - [ ] Verify validation passes
+    - [ ] Create `generated/` directory for code output
+    - [ ] Add `.canon/` to `.gitignore` (cache directory)
+
+# ========================================
+# DEVELOPMENT WORKFLOW
+# ========================================
+
+DevelopmentWorkflow:
+  type: Tutorial
+  title: Developing with Canon
+  difficulty: Beginner
+  prerequisite: ProjectSetupWorkflow
+  content: |
+    # Development Workflow
+
+    ## The Development Loop
+
+    ```
+    1. Edit .can.yml file
+    2. Run validation
+    3. Fix any errors
+    4. Repeat until valid
+    5. Generate code
+    6. Use in application
+    ```
+
+    ## Task: Add a New Class
+
+    **Goal**: Add a `BlogPost` class to your ontology
+
+    ### Step 1: Edit Canon Document
+
+    Add to `myapp@1.0.0.can.yml`:
+
+    ```yaml
+    BlogPost:
+      type: rdfs.Class
+      label: Blog Post
+      comment: A blog post written by an author
+      subClassOf: rdfs.Resource
+    ```
+
+    ### Step 2: Validate
+
+    ```bash
+    canon validate
+    ```
+
+    ### Step 3: Add Properties
+
+    ```yaml
+    title:
+      type: DatatypeProperty
+      domain: BlogPost
+      range: string
+      label: Title
+      comment: The title of the blog post
+
+    content:
+      type: DatatypeProperty
+      domain: BlogPost
+      range: string
+      label: Content
+      comment: The main content of the blog post
+
+    author:
+      type: ObjectProperty
+      domain: BlogPost
+      range: Person
+      label: Author
+      comment: The person who wrote the blog post
+    ```
+
+    ### Step 4: Validate Again
+
+    ```bash
+    canon validate --verbose
+    ```
+
+    The `--verbose` flag shows detailed validation progress.
+
+    ## Task: Create Instance Data
+
+    **Goal**: Create sample blog posts
+
+    ```yaml
+    my-first-post:
+      type: BlogPost
+      title: "Hello World"
+      content: "This is my first blog post!"
+      author: john-doe
+
+    john-doe:
+      type: Person
+      name: "John Doe"
+    ```
+
+    ## Common Development Tasks
+
+    ### Adding a Property to Existing Class
+
+    ```yaml
+    # Add new property definition
+    publishedDate:
+      type: DatatypeProperty
+      domain: BlogPost
+      range: xsd.dateTime
+      label: Published Date
+
+    # Update instances to include new property
+    my-first-post:
+      type: BlogPost
+      title: "Hello World"
+      publishedDate: "2024-01-15T10:00:00Z"  # New field
+    ```
+
+    ### Creating Hierarchies
+
+    ```yaml
+    # Base class
+    Content:
+      type: rdfs.Class
+      label: Content
+
+    # Subclasses
+    BlogPost:
+      type: rdfs.Class
+      subClassOf: Content
+
+    Comment:
+      type: rdfs.Class
+      subClassOf: Content
+    ```
+
+    ### Using Embedded Objects
+
+    ```yaml
+    # Define property with range
+    hasAddress:
+      type: ObjectProperty
+      domain: Person
+      range: Address
+
+    # Use embedded object (NO explicit type)
+    john-doe:
+      type: Person
+      hasAddress:
+        street: "123 Main St"
+        city: "Springfield"
+        # Type is inferred as Address from hasAddress.range
+    ```
+
+DevelopmentTips:
+  type: ConceptualModel
+  title: Development Best Practices
+  difficulty: Beginner
+  content: |
+    # Development Tips
+
+    ## 1. Validate Frequently
+
+    Run validation after every significant change:
+    ```bash
+    # Quick validation
+    canon validate
+
+    # Detailed output
+    canon validate --verbose
+    ```
+
+    ## 2. Use Imports for Reusable Vocabularies
+
+    Don't redefine common types - import them:
+
+    ```yaml
+    imports:
+      - publisher: canon-protocol.org
+        packages:
+          - package: core-rdf
+            match: ^
+            version: 1.0.1
+            alias: rdfs
+          - package: core-xsd
+            match: ^
+            version: 1.0.1
+    ```
+
+    ## 3. Start Small, Then Refactor
+
+    1. Start with entities in one file
+    2. When it grows > 500 lines, split into packages
+    3. Extract common types into shared packages
+
+    ## 4. Use Meaningful Names
+
+    ```yaml
+    # ✅ GOOD
+    BlogPost:
+      type: rdfs.Class
+
+    publishedDate:
+      type: DatatypeProperty
+
+    # ❌ BAD
+    BP:
+      type: rdfs.Class
+
+    pd:
+      type: DatatypeProperty
+    ```
+
+    ## 5. Document with Labels and Comments
+
+    ```yaml
+    BlogPost:
+      type: rdfs.Class
+      label: Blog Post                          # Human-readable name
+      comment: A blog post written by an author # Purpose explanation
+    ```
+
+    ## 6. Check Generated Code
+
+    After validation, generate code to verify:
+    ```bash
+    canon generate --output generated/typescript
+    ```
+
+    Review the generated TypeScript to ensure it matches your intent.
+
+# ========================================
+# CODE GENERATION WORKFLOW
+# ========================================
+
+CodeGenerationWorkflow:
+  type: Tutorial
+  title: Generating Code from Canon
+  difficulty: Intermediate
+  prerequisite: DevelopmentWorkflow
+  content: |
+    # Code Generation Workflow
+
+    ## Overview
+
+    Canon can generate type-safe code for multiple languages from your ontology.
+
+    ## Supported Languages
+
+    - **TypeScript** - Interfaces and types
+    - **C#** - Classes and properties
+    - **Rust** - Traits and structs
+
+    ## TypeScript Export
+
+    ### Step 1: Run Export Command
+
+    ```bash
+    canon generate --output generated/typescript
+    ```
+
+    ### Step 2: Review Generated Code
+
+    Generated file: `generated/typescript/myapp.ts`
+
+    ```typescript
+    // Auto-generated from Canon ontology
+
+    export interface Person {
+      readonly name: string;
+    }
+
+    export namespace Person {
+      export const __canon = {
+        package: 'myblog.com/myapp@1.0.0',
+        class: 'Person',
+      };
+    }
+
+    export interface BlogPost {
+      readonly title: string;
+      readonly content: string;
+      readonly author: Person;
+      readonly publishedDate: Date;
+    }
+
+    export namespace BlogPost {
+      export const __canon = {
+        package: 'myblog.com/myapp@1.0.0',
+        class: 'BlogPost',
+      };
+    }
+    ```
+
+    ### Step 3: Use in Your Application
+
+    ```typescript
+    import { BlogPost, Person } from './generated/typescript/myapp';
+
+    const author: Person = {
+      name: "John Doe"
+    };
+
+    const post: BlogPost = {
+      title: "Hello World",
+      content: "My first post",
+      author: author,
+      publishedDate: new Date()
+    };
+    ```
+
+    ## C# Export
+
+    ### Step 1: Run Export Command
+
+    ```bash
+    canon generate --format csharp --output generated/csharp
+    ```
+
+    ### Step 2: Review Generated Code
+
+    Generated file: `generated/csharp/MyApp.cs`
+
+    ```csharp
+    using Canon.Runtime;
+
+    namespace MyCompany.MyApp
+    {
+        [CanonType("Person", Package = "myblog.com/myapp@1.0.0")]
+        public interface IPerson
+        {
+            string? Name { get; }
+        }
+
+        [CanonType("Person", Package = "myblog.com/myapp@1.0.0")]
+        public class Person : IPerson
+        {
+            [CanonProperty("name")]
+            public string? Name { get; set; }
+        }
+
+        [CanonType("BlogPost", Package = "myblog.com/myapp@1.0.0")]
+        public interface IBlogPost
+        {
+            string? Title { get; }
+            string? Content { get; }
+            IPerson? Author { get; }
+            DateTime? PublishedDate { get; }
+        }
+
+        [CanonType("BlogPost", Package = "myblog.com/myapp@1.0.0")]
+        public class BlogPost : IBlogPost
+        {
+            [CanonProperty("title")]
+            public string? Title { get; set; }
+
+            [CanonProperty("content")]
+            public string? Content { get; set; }
+
+            [CanonProperty("author")]
+            public Person? Author { get; set; }
+            IPerson? IBlogPost.Author => Author;
+
+            [CanonProperty("publishedDate")]
+            public DateTime? PublishedDate { get; set; }
+        }
+    }
+    ```
+
+    ### Step 3: Use in Your Application
+
+    ```csharp
+    using MyCompany.MyApp;
+
+    var author = new Person { Name = "John Doe" };
+    var post = new BlogPost
+    {
+        Title = "Hello World",
+        Content = "My first post",
+        Author = author,
+        PublishedDate = DateTime.Now
+    };
+    ```
+
+    ## Regeneration Workflow
+
+    When you update your Canon ontology:
+
+    ```bash
+    # 1. Edit .can.yml file
+    # 2. Validate changes
+    canon validate
+
+    # 3. Regenerate code
+    canon generate --output generated/typescript
+
+    # 4. Check for compilation errors in your app
+    npm run build
+
+    # 5. Fix any breaking changes
+    ```
+
+    ## Integration with Build Systems
+
+    ### package.json (Node.js)
+
+    ```json
+    {
+      "scripts": {
+        "generate": "canon generate --output src/generated",
+        "prebuild": "npm run generate",
+        "build": "tsc"
+      }
+    }
+    ```
+
+    ### .csproj (C#)
+
+    ```xml
+    <Target Name="GenerateCanon" BeforeTargets="BeforeBuild">
+      <Exec Command="canon generate --format csharp --output Generated" />
+    </Target>
+    ```
+
+CodeGenerationTips:
+  type: ConceptualModel
+  title: Code Generation Best Practices
+  difficulty: Intermediate
+  content: |
+    # Code Generation Tips
+
+    ## 1. Keep Generated Code Separate
+
+    ```
+    src/
+    ├── generated/       # Auto-generated (don't edit!)
+    │   └── models.ts
+    └── app/             # Your application code
+        └── index.ts
+    ```
+
+    Add comment to generated files:
+    ```typescript
+    // AUTO-GENERATED - DO NOT EDIT
+    // Generated from Canon ontology
+    // Regenerate with: npm run generate
+    ```
+
+    ## 2. Use Partial Classes (C#) for Extensions
+
+    ```csharp
+    // Generated/BlogPost.cs (auto-generated)
+    public partial class BlogPost { ... }
+
+    // Extensions/BlogPost.cs (your code)
+    public partial class BlogPost
+    {
+        public string GetSlug() => Title.ToLower().Replace(" ", "-");
+    }
+    ```
+
+    ## 3. Version Your Generated Code
+
+    Commit generated code to version control so:
+    - Code reviews show generated changes
+    - Builds work without Canon CLI installed
+    - Breaking changes are visible in diffs
+
+    ## 4. Validate Before Generating
+
+    Always validate first to avoid generating from invalid ontology:
+
+    ```bash
+    canon validate && \
+    canon generate --output generated
+    ```
+
+    ## 5. Use Type Mappings
+
+    XSD datatypes map to language types:
+
+    | XSD Type | TypeScript | C# |
+    |----------|-----------|-----|
+    | xsd.string | string | string |
+    | xsd.integer | number | int |
+    | xsd.boolean | boolean | bool |
+    | xsd.dateTime | Date | DateTime |
+    | xsd.decimal | number | decimal |
+
+# ========================================
+# PUBLISHING WORKFLOW
+# ========================================
+
+PublishingWorkflow:
+  type: Tutorial
+  title: Publishing Canon Packages
+  difficulty: Advanced
+  prerequisite: CodeGenerationWorkflow
+  content: |
+    # Publishing Canon Packages
+
+    ## Overview
+
+    Canon packages are published to OCI (Open Container Initiative) registries,
+    the same infrastructure used for Docker images.
+
+    ## Publishing Workflow
+
+    ```
+    1. Finalize package content
+    2. Validate thoroughly
+    3. Choose version number (semver)
+    4. Publish to registry
+    5. Verify publication
+    ```
+
+    ## Step 1: Prepare Package
+
+    Ensure your package is complete:
+
+    ```yaml
+    myapp:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0       # Semantic version
+      imports:
+        - publisher: canon-protocol.org
+          packages:
+            - package: core-rdf
+              match: ^
+              version: 1.0.1
+
+    # All entities defined...
+    ```
+
+    ## Step 2: Validate Thoroughly
+
+    ```bash
+    # Validate package
+    canon validate
+
+    # Validate with all imports
+    canon validate --verbose
+    ```
+
+    ## Step 3: Choose Version Number
+
+    Follow semantic versioning:
+
+    - **Major (1.0.0 → 2.0.0)**: Breaking changes
+      - Remove entity
+      - Change property type
+      - Remove property
+      - Change inheritance hierarchy
+
+    - **Minor (1.0.0 → 1.1.0)**: Backward-compatible additions
+      - Add new entity
+      - Add new property
+      - Add new subclass
+
+    - **Patch (1.0.0 → 1.0.1)**: Non-breaking fixes
+      - Fix typos in labels/comments
+      - Add missing documentation
+      - Fix validation errors
+
+    ## Step 4: Publish to Registry
+
+    ```bash
+    # Publish to OCI registry
+    canon package publish specs/mycompany.com/myapp@1.0.0.can.yml
+    ```
+
+    ## Step 5: Verify Publication
+
+    ```bash
+    # List package versions in registry
+    canon package list ghcr.io/mycompany/canon/myapp
+
+    # Install package to verify
+    canon package install ghcr.io/mycompany/canon/myapp:1.0.0
+    ```
+
+    ## Publishing to Different Registries
+
+    ### GitHub Container Registry (ghcr.io)
+
+    ```bash
+    # Login
+    echo $GITHUB_TOKEN | canon auth login ghcr.io -u USERNAME --password-stdin
+
+    # Publish
+    canon package publish specs/mycompany.com/myapp@1.0.0.can.yml
+    ```
+
+    ### Azure Container Registry
+
+    ```bash
+    # Login
+    az acr login --name myregistry
+
+    # Publish
+    canon package publish specs/mycompany.com/myapp@1.0.0.can.yml
+    ```
+
+    ### Local Registry (Development)
+
+    ```bash
+    # Start local registry
+    docker run -d -p 5000:5000 registry:2
+
+    # Publish
+    canon package publish specs/mycompany.com/myapp@1.0.0.can.yml
+    ```
+
+PublishingBestPractices:
+  type: ConceptualModel
+  title: Publishing Best Practices
+  difficulty: Advanced
+  content: |
+    # Publishing Best Practices
+
+    ## 1. Use Pre-Release Versions During Development
+
+    ```yaml
+    # Development version
+    version: 0.1.0    # Major version 0 = unstable
+
+    # First stable release
+    version: 1.0.0    # Signals stability commitment
+    ```
+
+    ## 2. Tag Releases in Git
+
+    ```bash
+    # Create git tag matching Canon version
+    git tag -a v1.0.0 -m "Release version 1.0.0"
+    git push origin v1.0.0
+    ```
+
+    ## 3. Maintain a Changelog
+
+    Create `CHANGELOG.md`:
+
+    ```markdown
+    # Changelog
+
+    ## [1.1.0] - 2024-01-15
+    ### Added
+    - BlogPost.publishedDate property
+    - Comment class
+
+    ## [1.0.0] - 2024-01-01
+    ### Added
+    - Initial release
+    - Person and BlogPost classes
+    ```
+
+    ## 4. Document Breaking Changes
+
+    When bumping major version, document migration:
+
+    ```markdown
+    # Migrating from 1.x to 2.0
+
+    ## Breaking Changes
+
+    1. `BlogPost.author` changed from Person to Author
+       - Update all instances to use Author type
+
+    2. Removed `BlogPost.draft` property
+       - Use `BlogPost.status` instead
+    ```
+
+    ## 5. Test Before Publishing
+
+    ```bash
+    # Validate
+    canon validate
+
+    # Generate code and test compilation
+    canon generate --output generated
+    cd generated && npm run build
+
+    # If all passes, publish
+    canon package publish specs/mycompany.com/myapp@1.0.0.can.yml
+    ```
+
+    ## 6. Use Namespace Conventions
+
+    ```
+    # Development/testing
+    dev.mycompany.com/myapp@0.1.0
+
+    # Production
+    mycompany.com/myapp@1.0.0
+    ```
+
+# ========================================
+# CONSUMING PACKAGES WORKFLOW
+# ========================================
+
+ConsumingPackagesWorkflow:
+  type: Tutorial
+  title: Using Published Canon Packages
+  difficulty: Intermediate
+  prerequisite: PublishingWorkflow
+  content: |
+    # Consuming Published Packages
+
+    ## Overview
+
+    Use published Canon packages as dependencies in your own packages.
+
+    ## Step 1: Configure Registry
+
+    Create `.canon/config.yml` in your workspace:
+
+    ```yaml
+    registries:
+      - url: https://ghcr.io/mycompany
+        auth:
+          username: ${GITHUB_USER}
+          password: ${GITHUB_TOKEN}
+      - url: https://canon-protocol.org
+        public: true
+    ```
+
+    ## Step 2: Add Import
+
+    In your `myapp@1.0.0.can.yml`:
+
+    ```yaml
+    myapp:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0
+      imports:
+        - publisher: mycompany.com
+          packages:
+            - package: shared-types
+              match: ^
+              version: 1.0.1
+
+    # Use entities from imported package
+    myEntity:
+      type: shared-types.Customer
+    ```
+
+    ## Step 3: Validate
+
+    ```bash
+    # Validation automatically downloads missing packages
+    canon validate
+    ```
+
+    Downloaded packages are cached in `.canon/packages/`.
+
+    ## Step 4: Update Dependencies
+
+    ```bash
+    # Check for package updates (planned feature)
+    # canon package check-updates --workspace specs
+
+    # Update to latest compatible versions (planned feature)
+    # canon package update --workspace specs
+    ```
+
+    ## Version Constraint Examples
+
+    ```yaml
+    imports:
+      - publisher: mycompany.com
+        packages:
+          - package: types
+            match: ^
+            version: 1.0.1      # Exact version
+          - package: utils
+            match: ~
+            version: 1.2.0      # Patch updates: 1.2.x
+          - package: common
+            match: ^
+            version: 1.0.1      # Minor updates: 1.x.x
+          - package: legacy
+            match: "*"
+            version: 0.5.0      # Any version (avoid in production!)
+    ```
+
+    ## Finding Packages
+
+    ```bash
+    # List installed packages
+    canon package list
+
+    # Show package details
+    canon package show blog-types
+
+    # Search for resources within your workspace
+    canon search resource blog
+    ```
+
+CommonWorkflowPatterns:
+  type: ConceptualModel
+  title: Common Workflow Patterns
+  difficulty: Intermediate
+  content: |
+    # Common Workflow Patterns
+
+    ## Pattern: Monorepo with Multiple Packages
+
+    ```
+    project/
+    ├── specs/
+    │   ├── mycompany.com/
+    │   │   ├── core@1.0.0.can.yml       # Shared types
+    │   │   ├── users@1.0.0.can.yml      # User domain
+    │   │   └── products@1.0.0.can.yml   # Product domain
+    │   └── .canon/
+    └── apps/
+        ├── user-service/
+        └── product-service/
+    ```
+
+    Each package imports `core`:
+
+    ```yaml
+    # users@1.0.0.can.yml
+    imports:
+      - publisher: mycompany.com
+        packages:
+          - package: core
+            match: ^
+            version: 1.0.1
+    ```
+
+    ## Pattern: Shared Vocabulary Package
+
+    Create reusable vocabulary:
+
+    ```yaml
+    # mycompany.com/common@1.0.0.can.yml
+    common:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0
+
+    Address:
+      type: rdfs.Class
+
+    EmailAddress:
+      type: DatatypeProperty
+      range: string
+    ```
+
+    Consume in multiple apps:
+
+    ```yaml
+    # app1@1.0.0.can.yml
+    imports:
+      - publisher: mycompany.com
+        packages:
+          - package: common
+            match: ^
+            version: 1.0.1
+
+    Customer:
+      type: rdfs.Class
+      hasEmailAddress:
+        type: ObjectProperty
+        range: common.Address
+    ```
+
+    ## Pattern: CI/CD Integration
+
+    ### GitHub Actions
+
+    ```yaml
+    name: Validate and Publish Canon
+
+    on: [push]
+
+    jobs:
+      validate:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v2
+          - name: Install Canon CLI
+            run: dotnet tool install -g Canon.CLI
+          - name: Validate
+            run: canon validate
+          - name: Login (on tag)
+            if: startsWith(github.ref, 'refs/tags/')
+            run: echo ${{ secrets.GITHUB_TOKEN }} | canon auth login ghcr.io -u ${{ github.actor }} --password-stdin
+          - name: Publish (on tag)
+            if: startsWith(github.ref, 'refs/tags/')
+            run: canon package publish specs
+    ```
+
+    ## Pattern: Multi-Language Export
+
+    Generate for all target languages:
+
+    ```bash
+    #!/bin/bash
+    # scripts/generate-all.sh
+
+    # TypeScript
+    canon generate --output clients/typescript/src/generated
+
+    # C# (NuGet package)
+    canon generate --format csharp --output clients/csharp/Generated
+
+    # Rust (planned - not yet available)
+    # canon generate --format rust --output clients/rust/src/generated
+    ```

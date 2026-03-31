@@ -1,0 +1,550 @@
+# Package declaration
+core-canon-object-model:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.2
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: core-rdf
+          match: ^
+          version: 1.0.1
+          alias: rdfs
+        - package: education
+          match: ^
+          version: 1.0.1
+
+# ========================================
+# CANON OBJECT MODEL HIERARCHY
+# ========================================
+
+CanonObjectModelOverview:
+  type: ConceptualModel
+  title: The Canon Object Model
+  difficulty: Beginner
+  content: |
+    # Understanding Canon Objects
+
+    Canon objects represent entities in the semantic graph. Every Canon object is
+    an instance of one of these three types:
+
+    ## The Hierarchy
+
+    ```
+    Canon (abstract base)
+    ├── DefinedCanon (abstract - has statements)
+    │   ├── SubjectCanon (top-level with identity)
+    │   └── EmbeddedCanon (nested without identity)
+    └── ReferenceCanon (pointer to another Canon)
+    ```
+
+    ## When to Use Each
+
+    - **SubjectCanon**: Top-level entities with global identity (URI)
+      - Examples: Characters, Classes, Properties, Instances
+      - Has: Namespace, Name, Icon, List<IStatement>
+
+    - **EmbeddedCanon**: Nested data within a property value
+      - Examples: Addresses, coordinates, nested configuration
+      - Has: List<IStatement> only (no identity)
+      - Type automatically inferred from parent property's range
+
+    - **ReferenceCanon**: Pointer to another Canon via URI
+      - Examples: Property references, type declarations
+      - Has: CanonUri (Subject field)
+
+# ========================================
+# SUBJECT CANON (Top-Level Entities)
+# ========================================
+
+SubjectCanonConcept:
+  type: ConceptualModel
+  title: SubjectCanon - Entities with Global Identity
+  difficulty: Beginner
+  prerequisite: CanonObjectModelOverview
+  content: |
+    # SubjectCanon: Top-Level Entities
+
+    A **SubjectCanon** represents a top-level entity with global identity.
+
+    ## Properties
+
+    - **Namespace**: Full namespace (publisher/package@version)
+    - **Name**: Entity name within the namespace
+    - **Icon**: Optional emoji icon for UI representation
+    - **Statement**: List of triples (Subject-Predicate-Object)
+
+    ## Identity
+
+    Full URI: `{Publisher}/{Package}/{Name}@{Version}`
+
+    Example: `stories.org/characters/romeo-montague@1.0.0`
+
+    ## When to Use
+
+    Use SubjectCanon for ANY top-level entity:
+    - Class definitions (Person, Product, Address)
+    - Property definitions (name, age, address)
+    - Data instances (romeo-montague, product-123)
+    - Ontology metadata
+
+    ## YAML Mapping
+
+    ```yaml
+    romeo-montague:          # Name
+      type: Character        # Statement (type property)
+      characterName: "Romeo" # Statement (characterName property)
+      age: 17                # Statement (age property)
+    ```
+
+    This YAML creates a SubjectCanon with:
+    - Namespace from document metadata
+    - Name: "romeo-montague"
+    - 3 Statements (type, characterName, age)
+
+# ========================================
+# EMBEDDED CANON (Nested Objects)
+# ========================================
+
+EmbeddedCanonConcept:
+  type: ConceptualModel
+  title: EmbeddedCanon - Nested Objects Without Identity
+  difficulty: Intermediate
+  prerequisite: SubjectCanonConcept
+  content: |
+    # EmbeddedCanon: Nested Data Structures
+
+    An **EmbeddedCanon** represents nested data within a property value.
+
+    ## Critical Characteristics
+
+    1. **No Global Identity**: No namespace, no name, no URI
+    2. **Type Inferred**: Type automatically determined from parent property's range
+    3. **Cannot Have Explicit Type**: Adding 'type' property is an ERROR
+    4. **Context-Dependent**: Only exists within parent entity
+
+    ## Properties
+
+    - **Statement**: List of triples (just like SubjectCanon)
+    - That's it! No namespace, name, or icon.
+
+    ## Type Inference Rule (CRITICAL)
+
+    🚨 **The type of an embedded object is AUTOMATICALLY INFERRED from the
+    parent property's range. You CANNOT specify it explicitly.**
+
+    Example:
+    ```yaml
+    # Property definition:
+    hasAddress:
+      type: ObjectProperty
+      range: Address  # ← This defines embedded object's type
+
+    # Entity using the property:
+    alice:
+      type: Person
+      hasAddress:     # ← This embedded object is type Address
+        street: "123 Main St"  # (inferred, not explicit!)
+        city: "Springfield"
+    ```
+
+    ## Why No Explicit Type?
+
+    The range of `hasAddress` already declares the type. Adding `type: Address`
+    would be redundant and could create conflicts if they don't match.
+
+    ## When to Use
+
+    Use EmbeddedCanon for:
+    - Structured values that don't need global identity
+    - Nested configuration objects
+    - Composite data (address, coordinates, date ranges)
+    - One-off nested data unique to the parent
+
+    ## When NOT to Use
+
+    Don't use EmbeddedCanon when:
+    - Entity needs to be referenced from multiple places
+    - Entity needs a globally unique identifier
+    - Entity might exist independently
+
+    → Use SubjectCanon with ObjectProperty reference instead
+
+EmbeddedObjectTypeInferenceRule:
+  type: ConceptualModel
+  title: Embedded Object Type Inference - The #1 Rule
+  difficulty: Beginner
+  prerequisite: EmbeddedCanonConcept
+  content: |
+    # The Embedded Object Type Inference Rule
+
+    This is the **most important rule** to understand about embedded objects.
+
+    ## The Rule
+
+    **Embedded objects CANNOT have an explicit 'type' property.**
+    **The type is automatically inferred from the parent property's range.**
+
+    ## Why This Matters
+
+    This is the #1 source of errors for new Canon users. The validation
+    system will reject any embedded object with an explicit type.
+
+    ## How It Works
+
+    1. You define a property with a range:
+       ```yaml
+       hasAddress:
+         type: ObjectProperty
+         range: Address
+       ```
+
+    2. When you use that property with an embedded object:
+       ```yaml
+       person:
+         hasAddress:
+           street: "123 Main St"
+       ```
+
+    3. Canon automatically knows this embedded object is type Address
+       because `hasAddress.range = Address`
+
+    ## Common Mistake
+
+    ❌ **WRONG** (will cause validation error):
+    ```yaml
+    person:
+      hasAddress:
+        type: Address  # ❌ ERROR! Embedded objects can't have type
+        street: "123 Main St"
+    ```
+
+    ✅ **CORRECT**:
+    ```yaml
+    person:
+      hasAddress:     # Type inferred from hasAddress.range
+        street: "123 Main St"
+    ```
+
+    ## Error Message
+
+    If you add explicit type to an embedded object, you'll see:
+
+    ```
+    Embedded objects cannot have explicit 'type' property.
+    Type is automatically inferred from the containing property's range.
+    If you need a different type, modify the 'range' of the parent property.
+    ```
+
+    ## Alternative: Named Entity with Reference
+
+    If you need an explicit type or want the object to be reusable:
+
+    ```yaml
+    # Define it as a SubjectCanon:
+    alice-address:
+      type: Address
+      street: "123 Main St"
+      city: "Springfield"
+
+    # Reference it:
+    alice-person:
+      type: Person
+      hasAddress: alice-address  # ObjectProperty reference
+    ```
+
+# ========================================
+# REFERENCE CANON (Pointers)
+# ========================================
+
+ReferenceCanonConcept:
+  type: ConceptualModel
+  title: ReferenceCanon - Pointers to Other Entities
+  difficulty: Beginner
+  prerequisite: SubjectCanonConcept
+  content: |
+    # ReferenceCanon: Entity References
+
+    A **ReferenceCanon** is a pointer to another Canon object via its URI.
+
+    ## Properties
+
+    - **Subject**: CanonUri pointing to the referenced entity
+
+    That's it! It's just a typed pointer.
+
+    ## Structure
+
+    ```
+    ReferenceCanon {
+      Subject: CanonUri {
+        Publisher: "stories.org"
+        Package: "characters"
+        Name: "romeo-montague"
+        Version: 1.0.0
+      }
+    }
+    ```
+
+    ## When Used
+
+    ReferenceCanon appears in two contexts:
+
+    ### 1. As Statement Predicate
+
+    Every statement's predicate is a ReferenceCanon pointing to a property:
+
+    ```yaml
+    romeo:
+      characterName: "Romeo"
+    ```
+
+    Becomes:
+    ```
+    Statement {
+      Predicate: ReferenceCanon(stories.org/properties/characterName@1.0.0)
+      Object: "Romeo"
+    }
+    ```
+
+    ### 2. As ObjectProperty Value
+
+    When one entity references another:
+
+    ```yaml
+    romeo:
+      type: Character
+      liveIn: VeronaTown
+    ```
+
+    Becomes:
+    ```
+    ReferenceStatement {
+      Predicate: ReferenceCanon(stories.org/properties/liveIn@1.0.0)
+      Object: ReferenceCanon(stories.org/towns/VeronaTown@1.0.0)
+    }
+    ```
+
+    ## Resolution
+
+    ReferenceCanons are resolved through:
+    - Entity index (built from transitive imports)
+    - Aliased references (e.g., "xsd.string")
+    - Full URI lookup
+
+# ========================================
+# STATEMENT TYPE SYSTEM
+# ========================================
+
+StatementTypeSystem:
+  type: ConceptualModel
+  title: Statement Type System - The Triple Model
+  difficulty: Intermediate
+  prerequisite: CanonObjectModelOverview
+  content: |
+    # Canon Statement Types
+
+    Every Canon entity contains a list of **Statements** (RDF triples).
+    Each statement represents one piece of information about the entity.
+
+    ## Statement = Triple
+
+    Every statement is a triple: (Subject, Predicate, Object)
+
+    - **Subject**: The entity being described (implicit - it's the containing Canon)
+    - **Predicate**: ReferenceCanon to the property
+    - **Object**: The value (type varies by statement type)
+
+    ## The Complete Hierarchy
+
+    ```
+    IStatement (interface)
+    └── Statement<TObject> (abstract generic)
+        ├── ScalarStatement<TScalar> (abstract)
+        │   ├── StringStatement (Object: string)
+        │   ├── NumberStatement (Object: double)
+        │   └── BooleanStatement (Object: bool)
+        ├── ReferenceStatement (Object: ReferenceCanon)
+        ├── EmbeddedStatement (Object: EmbeddedCanon)
+        └── ListStatement (Object: List<Canon>)
+    ```
+
+    ## Statement Types Explained
+
+    ### StringStatement
+    - **Object**: string value
+    - **Used for**: Text, labels, descriptions, identifiers
+    - **Example**: `characterName: "Romeo Montague"`
+
+    ### NumberStatement
+    - **Object**: double value (all numbers stored as double)
+    - **Used for**: Integers, decimals, counts, measurements
+    - **Example**: `age: 17`
+
+    ### BooleanStatement
+    - **Object**: bool value
+    - **Used for**: Flags, toggles, yes/no properties
+    - **Example**: `isActive: true`
+
+    ### ReferenceStatement
+    - **Object**: ReferenceCanon (pointer to another entity)
+    - **Used for**: ObjectProperty references
+    - **Example**: `liveIn: VeronaTown`
+
+    ### EmbeddedStatement
+    - **Object**: EmbeddedCanon (nested object)
+    - **Used for**: Structured nested data
+    - **Example**: `hasAddress: { street: "...", city: "..." }`
+
+    ### ListStatement
+    - **Object**: List<Canon> (array of ReferenceCanons or EmbeddedCanons)
+    - **Used for**: Multi-valued properties, collections
+    - **Example**: `friends: [bob-person, charlie-employee]`
+
+    ## How Statements are Created
+
+    The CanonObjectParser reads YAML and creates the appropriate statement type
+    based on:
+
+    1. **Property metadata** (DatatypeProperty vs ObjectProperty)
+    2. **Value type** (string, number, bool, object, array)
+    3. **Range declaration** (determines object vs datatype)
+
+    Example transformation:
+
+    ```yaml
+    romeo-montague:
+      type: Character
+      characterName: "Romeo"
+      age: 17
+      liveIn: VeronaTown
+    ```
+
+    Becomes:
+
+    ```
+    SubjectCanon {
+      Namespace: "stories.org/characters@1.0.0",
+      Name: "romeo-montague",
+      Statement: [
+        ReferenceStatement {
+          Predicate: ReferenceCanon(canon-protocol.org/core-rdf/type@1.0.0),
+          Object: ReferenceCanon(stories.org/classes/Character@1.0.0)
+        },
+        StringStatement {
+          Predicate: ReferenceCanon(stories.org/properties/characterName@1.0.0),
+          Object: "Romeo"
+        },
+        NumberStatement {
+          Predicate: ReferenceCanon(stories.org/properties/age@1.0.0),
+          Object: 17.0
+        },
+        ReferenceStatement {
+          Predicate: ReferenceCanon(stories.org/properties/liveIn@1.0.0),
+          Object: ReferenceCanon(stories.org/towns/VeronaTown@1.0.0)
+        }
+      ]
+    }
+    ```
+
+# ========================================
+# PRACTICAL EXAMPLES
+# ========================================
+
+ObjectModelPracticalExample:
+  type: CodeExample
+  title: Complete Object Model Example
+  language: yaml
+  codeSnippet: |
+    # Package declaration
+    demo:
+      type: Package
+      publisher: example.com
+      version: 1.0.0
+      imports:
+        - publisher: canon-protocol.org
+          packages:
+            - package: core-rdf
+              match: ^
+              version: 1.0.1
+              alias: rdfs
+            - package: core-xsd
+              match: ^
+              version: 1.0.1
+
+    # ==========================================
+    # CLASS DEFINITIONS (SubjectCanons)
+    # ==========================================
+
+    Person:
+      type: rdfs.Class
+      label: Person
+      comment: A human being
+
+    Address:
+      type: rdfs.Class
+      label: Address
+      comment: A physical mailing address
+
+    # ==========================================
+    # PROPERTY DEFINITIONS (SubjectCanons)
+    # ==========================================
+
+    name:
+      type: DatatypeProperty
+      label: Name
+      domain: Person
+      range: string
+
+    age:
+      type: DatatypeProperty
+      label: Age
+      domain: Person
+      range: integer
+
+    hasAddress:
+      type: ObjectProperty
+      label: Has Address
+      domain: Person
+      range: Address  # ← Defines type of embedded objects!
+
+    street:
+      type: DatatypeProperty
+      label: Street
+      domain: Address
+      range: string
+
+    city:
+      type: DatatypeProperty
+      label: City
+      domain: Address
+      range: string
+
+    # ==========================================
+    # INSTANCE DATA
+    # ==========================================
+
+    # SubjectCanon with embedded object
+    alice-person:
+      type: Person        # ReferenceStatement
+      name: Alice Smith   # StringStatement
+      age: 30             # NumberStatement
+      hasAddress:         # EmbeddedStatement
+        # ↑ This is an EmbeddedCanon
+        # Type = Address (inferred from hasAddress.range)
+        # NO EXPLICIT TYPE ALLOWED!
+        street: "123 Main St"   # StringStatement within embedded
+        city: "Springfield"     # StringStatement within embedded
+
+    # SubjectCanon with reference
+    bob-person:
+      type: Person
+      name: Bob Jones
+      age: 28
+      hasAddress: shared-address  # ReferenceStatement (not embedded)
+
+    # Shared address (SubjectCanon)
+    shared-address:
+      type: Address
+      street: "456 Oak Ave"
+      city: "Portland"

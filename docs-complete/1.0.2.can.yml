@@ -1,0 +1,146 @@
+# Package declaration
+docs-complete:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.2
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        # Core packages (6)
+        - package: common
+          match: ^
+          version: 1.0.1
+        - package: core-rdf
+          match: ^
+          version: 1.0.1
+        - package: core-xsd
+          match: ^
+          version: 1.0.1
+        - package: core-owl
+          match: ^
+          version: 2.0.1
+        - package: core-canon-object-model
+          match: ^
+          version: 1.0.1
+        - package: ui
+          match: ^
+          version: 1.0.1
+        # Documentation packages (9)
+        - package: protocol
+          match: ^
+          version: 1.0.1
+        - package: protocols-canon
+          match: ^
+          version: 1.0.1
+        - package: canon-registry
+          match: ^
+          version: 1.0.1
+        - package: resolution
+          match: ^
+          version: 1.0.1
+        - package: troubleshooting
+          match: ^
+          version: 1.0.1
+        - package: type-system
+          match: ^
+          version: 1.0.1
+        - package: validation
+          match: ^
+          version: 1.0.1
+        - package: workflows
+          match: ^
+          version: 1.0.1
+        - package: yaml-to-rdf
+          match: ^
+          version: 1.0.1
+        # Education packages (5)
+        - package: education
+          match: ^
+          version: 1.0.1
+        - package: education-intro
+          match: ^
+          version: 1.0.1
+        - package: education-building-blocks
+          match: ^
+          version: 1.0.1
+        - package: end-to-end
+          match: ^
+          version: 1.0.1
+        - package: package-ecosystem
+          match: ^
+          version: 1.0.1
+        # Patterns packages (2)
+        - package: patterns
+          match: ^
+          version: 1.0.1
+        - package: patterns-modeling
+          match: ^
+          version: 1.0.1
+
+# This is a meta-package with no entities of its own
+# Its sole purpose is to aggregate all Canon Protocol documentation packages
+# for easy installation via transitive dependencies
+
+DocsCompletePackage:
+  type: ConceptualModel
+  title: Canon Protocol Documentation Complete Bundle
+  difficulty: Beginner
+  content: |
+    # Documentation Complete Bundle
+
+    This meta-package imports all Canon Protocol documentation packages.
+
+    ## Installation
+
+    Install all 22 documentation packages with one command:
+
+    ```bash
+    canon package add canon-protocol.org/docs-complete@1.0.1
+    ```
+
+    This will automatically install via transitive dependencies:
+
+    **Core Packages (6):**
+    - common, core-rdf, core-xsd, core-owl, core-canon-object-model, ui
+
+    **Documentation Packages (9):**
+    - protocol, protocols-canon, registry, resolution, troubleshooting,
+      type-system, validation, workflows, yaml-to-rdf
+
+    **Education Packages (5):**
+    - education, education-intro, education-building-blocks,
+      end-to-end, package-ecosystem
+
+    **Patterns Packages (2):**
+    - patterns, patterns-modeling
+
+    ## For AI Agents
+
+    After installation, all packages are readable at:
+    ```
+    .canon/canon-protocol.org/*.can.yml
+    ```
+
+    ## Reading Order Recommendation
+
+    1. Start with `education-intro@1.0.1` - Overview
+    2. Read `education-building-blocks@1.0.1` - Core concepts
+    3. Review `end-to-end@1.0.1` - Complete tutorial
+    4. Reference other packages as needed
+
+    ## Package Categories
+
+    ### Core Foundation
+    Essential types and primitives for all Canon packages.
+
+    ### Documentation
+    Technical reference documentation covering protocol implementation,
+    validation rules, troubleshooting, and development workflows.
+
+    ### Education
+    Learning materials, tutorials, and guides for understanding
+    Canon Protocol from beginner to advanced levels.
+
+    ### Patterns
+    Design patterns, best practices, and real-world examples
+    for modeling with Canon Protocol.

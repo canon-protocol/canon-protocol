@@ -1,0 +1,81 @@
+# Package declaration
+ui:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.1
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: core-rdf
+          match: ^
+          version: 1.0.1
+          alias: rdfs
+        - package: core-xsd
+          match: ^
+          version: 1.0.1
+
+VisualDepiction:
+  type: rdfs.Class
+  label: Visual Depiction
+  comment: A visual representation of a resource, typically using SVG or other image formats
+  subClassOf: Resource
+
+HeroImage:
+  type: rdfs.Class
+  label: Hero Image
+  comment: A large, prominent image used as the main visual element, typically at the top of a page or section
+  subClassOf: VisualDepiction
+
+IconImage:
+  type: rdfs.Class
+  label: Icon Image
+  comment: A small, symbolic image used to represent a concept, action, or resource
+  subClassOf: VisualDepiction
+
+ThumbnailImage:
+  type: rdfs.Class
+  label: Thumbnail Image
+  comment: A small preview image used in lists, galleries, or navigation
+  subClassOf: VisualDepiction
+
+svgContent:
+  type: DatatypeProperty
+  label: SVG Content
+  comment: The SVG markup representing the visual depiction
+  domain: VisualDepiction
+  range: string
+
+altText:
+  type: DatatypeProperty
+  label: Alternative Text
+  comment: Text description of the image for accessibility
+  domain: VisualDepiction
+  range: string
+
+width:
+  type: DatatypeProperty
+  label: Width
+  comment: Width of the image in pixels
+  domain: VisualDepiction
+  range: integer
+
+height:
+  type: DatatypeProperty
+  label: Height
+  comment: Height of the image in pixels
+  domain: VisualDepiction
+  range: integer
+
+depicts:
+  type: ObjectProperty
+  label: Depicts
+  comment: The resource that this visual depiction represents
+  domain: VisualDepiction
+  range: Resource
+
+icon:
+  type: DatatypeProperty
+  label: Icon
+  comment: An emoji icon representing the entity
+  domain: Resource
+  range: string

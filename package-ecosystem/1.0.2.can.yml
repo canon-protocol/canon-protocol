@@ -1,0 +1,1089 @@
+# Package declaration
+package-ecosystem:
+  type: Package
+  publisher: canon-protocol.org
+  version: 1.0.2
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: education
+          match: ^
+          version: 1.0.1
+        - package: protocol
+          match: ^
+          version: 1.0.1
+        - package: patterns
+          match: ^
+          version: 1.0.1
+
+# ========================================
+# PACKAGE ECOSYSTEM OVERVIEW
+# ========================================
+
+PackageEcosystemOverview:
+  type: ConceptualModel
+  title: Canon Package Ecosystem
+  difficulty: Intermediate
+  content: |
+    # Canon Package Ecosystem
+
+    Canon packages form an ecosystem of reusable semantic vocabularies,
+    similar to npm for JavaScript or NuGet for C#.
+
+    ## Ecosystem Components
+
+    ### 1. Packages
+    - Self-contained Canon documents
+    - Publisher-namespaced
+    - Semantically versioned
+    - Published to OCI registries
+
+    ### 2. Registries
+    - OCI-compliant container registries
+    - GitHub Container Registry (ghcr.io)
+    - Azure Container Registry
+    - Docker Hub
+    - Private registries
+
+    ### 3. Dependencies
+    - Explicit imports in canon.imports
+    - Transitive resolution
+    - Version constraints (=, ~, ^, *)
+
+    ### 4. Package Types
+    - **Core vocabularies** - Foundational (RDF, OWL, XSD)
+    - **Domain vocabularies** - Industry-specific (finance, healthcare)
+    - **Application schemas** - Project-specific
+    - **Extension packages** - Extend existing vocabularies
+
+    ## Package Lifecycle
+
+    ```
+    Design → Develop → Validate → Publish → Consume → Maintain
+    ```
+
+# ========================================
+# PACKAGE DESIGN PRINCIPLES
+# ========================================
+
+PackageDesignPrinciples:
+  type: ConceptualModel
+  title: Package Design Principles
+  difficulty: Intermediate
+  prerequisite: PackageEcosystemOverview
+  content: |
+    # Package Design Principles
+
+    ## Principle 1: Single Responsibility
+
+    Each package should have ONE clear purpose.
+
+    **Good:**
+    ```yaml
+    # users@1.0.0 - User management only
+    User:
+      type: rdfs.Class
+
+    UserProfile:
+      type: rdfs.Class
+
+    # products@1.0.0 - Product catalog only
+    Product:
+      type: rdfs.Class
+
+    ProductCategory:
+      type: rdfs.Class
+    ```
+
+    **Bad:**
+    ```yaml
+    # app@1.0.0 - Everything mixed together
+    User:
+      type: rdfs.Class
+
+    Product:
+      type: rdfs.Class
+
+    Invoice:
+      type: rdfs.Class
+    # Too many concerns in one package!
+    ```
+
+    ## Principle 2: Cohesion
+
+    Entities in a package should be strongly related.
+
+    **High cohesion (good):**
+    - `Person`, `Employee`, `Customer` in `people@1.0.0`
+    - `Order`, `OrderLine`, `Payment` in `orders@1.0.0`
+
+    **Low cohesion (bad):**
+    - `User`, `Product`, `Invoice`, `ShippingAddress` in `misc@1.0.0`
+
+    ## Principle 3: Minimal Dependencies
+
+    Keep import count low for:
+    - Faster resolution
+    - Easier understanding
+    - Fewer breaking changes
+
+    ```yaml
+    # Good - 2 essential imports
+    imports:
+      - publisher: canon-protocol.org
+        packages:
+          - package: core-rdf
+            match: ^
+            version: 1.0.1
+          - package: core-xsd
+            match: ^
+            version: 1.0.1
+
+    # Bad - 10 imports, many unnecessary
+    imports:
+      # ... too many dependencies
+    ```
+
+    ## Principle 4: Stable Public API
+
+    Once published at 1.0.0:
+    - Don't remove entities (breaking!)
+    - Don't change property types (breaking!)
+    - Add new entities (backward compatible)
+
+    ## Principle 5: Semantic Versioning
+
+    - **Major (1.0.0 → 2.0.0)**: Breaking changes
+    - **Minor (1.0.0 → 1.1.0)**: New features (backward compatible)
+    - **Patch (1.0.0 → 1.0.1)**: Bug fixes / documentation
+
+    ## When to Split Packages
+
+    Split when package exhibits:
+    - **Size**: > 500 lines or > 50 entities
+    - **Multiple concerns**: User management + Product catalog
+    - **Different lifecycles**: Core types (stable) vs App logic (changes frequently)
+    - **Reusability**: Part of package useful to others
+    - **Team boundaries**: Different teams own different parts
+
+    ## When to Combine Packages
+
+    Combine when:
+    - Packages are always used together
+    - Very small (< 10 entities each)
+    - Strong coupling (can't use one without the other)
+    - Same lifecycle (change together)
+
+# ========================================
+# PACKAGE PATTERNS
+# ========================================
+
+CoreVocabularyPattern:
+  type: ModelingPattern
+  title: Core Vocabulary Package Pattern
+  difficulty: Intermediate
+  prerequisite: PackageDesignPrinciples
+  problem: Need foundational types that many packages depend on
+  solution: Create stable, minimal core vocabulary package
+  consequences: |
+    ✅ Pros:
+    - Shared foundation across ecosystem
+    - Semantic interoperability
+    - Stable, rarely changes
+
+    ❌ Cons:
+    - Must be extremely stable (breaking changes affect everyone)
+    - Design carefully upfront
+  hasConventionExamples:
+    - CoreVocabularyExample
+
+CoreVocabularyExample:
+  type: CodeExample
+  title: Core Vocabulary Example
+  language: yaml
+  codeSnippet: |
+    # mycompany.com/core@1.0.0.can.yml
+    core:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0
+      imports:
+        - publisher: canon-protocol.org
+          packages:
+            - package: core-rdf
+              match: ^
+              version: 1.0.1
+
+    # Foundational types
+    Entity:
+      type: rdfs.Class
+      comment: Base class for all business entities
+
+    AuditInfo:
+      type: rdfs.Class
+      comment: Audit trail information
+
+    createdAt:
+      type: DatatypeProperty
+      domain: AuditInfo
+      range: xsd.dateTime
+
+    modifiedAt:
+      type: DatatypeProperty
+      domain: AuditInfo
+      range: xsd.dateTime
+
+    # All other packages import this core
+
+DomainVocabularyPattern:
+  type: ModelingPattern
+  title: Domain Vocabulary Package Pattern
+  difficulty: Intermediate
+  prerequisite: CoreVocabularyPattern
+  problem: Need industry or domain-specific vocabulary
+  solution: Create domain package that extends core vocabulary
+  consequences: |
+    ✅ Pros:
+    - Semantic standardization within domain
+    - Reusable across projects in same domain
+    - Clear domain boundaries
+
+    ❌ Cons:
+    - Requires domain expertise
+    - May need coordination with industry standards
+  hasConventionExamples:
+    - DomainVocabularyExample
+
+DomainVocabularyExample:
+  type: CodeExample
+  title: Domain Vocabulary Example
+  language: yaml
+  codeSnippet: |
+    # finance.org/accounting@1.0.0.can.yml
+    accounting:
+      type: Package
+      publisher: finance.org
+      version: 1.0.0
+      imports:
+        - publisher: canon-protocol.org
+          packages:
+            - package: core-rdf
+              match: ^
+              version: 1.0.1
+
+    # Domain-specific types
+    Account:
+      type: rdfs.Class
+      comment: Financial account
+
+    Transaction:
+      type: rdfs.Class
+      comment: Financial transaction
+
+    Ledger:
+      type: rdfs.Class
+      comment: General ledger
+
+    # Domain-specific properties
+    debitAmount:
+      type: DatatypeProperty
+      domain: Transaction
+      range: xsd.decimal
+
+    creditAmount:
+      type: DatatypeProperty
+      domain: Transaction
+      range: xsd.decimal
+
+ApplicationSchemaPattern:
+  type: ModelingPattern
+  title: Application Schema Package Pattern
+  difficulty: Beginner
+  prerequisite: DomainVocabularyPattern
+  problem: Need application-specific data model
+  solution: Create app package importing core and domain vocabularies
+  consequences: |
+    ✅ Pros:
+    - Complete control over schema
+    - Can evolve quickly
+    - Specific to application needs
+
+    ❌ Cons:
+    - Less reusable
+    - May duplicate concepts
+  hasConventionExamples:
+    - ApplicationSchemaExample
+
+ApplicationSchemaExample:
+  type: CodeExample
+  title: Application Schema Example
+  language: yaml
+  codeSnippet: |
+    # mycompany.com/invoicing-app@1.0.0.can.yml
+    invoicing-app:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0
+      imports:
+        - publisher: mycompany.com
+          packages:
+            - package: core
+              match: ^
+              version: 1.0.1
+        - publisher: finance.org
+          packages:
+            - package: accounting
+              match: ^
+              version: 1.0.1
+
+    # Application-specific types
+    Invoice:
+      type: rdfs.Class
+      subClassOf: core.Entity  # Extends core
+      comment: Customer invoice
+
+    InvoiceLine:
+      type: rdfs.Class
+      comment: Line item on invoice
+
+    # Links to domain vocabulary
+    invoiceTransaction:
+      type: ObjectProperty
+      domain: Invoice
+      range: accounting.Transaction  # Uses domain vocab
+
+ExtensionPackagePattern:
+  type: ModelingPattern
+  title: Extension Package Pattern
+  difficulty: Advanced
+  prerequisite: ApplicationSchemaPattern
+  problem: Need to add properties to classes in imported packages
+  solution: Create extension package with additional properties
+  consequences: |
+    ✅ Pros:
+    - Extends without modifying original
+    - Multiple extensions possible
+    - Version independent
+
+    ❌ Cons:
+    - Fragmentation of schema
+    - Discovery harder
+  hasConventionExamples:
+    - ExtensionPackageExample
+
+ExtensionPackageExample:
+  type: CodeExample
+  title: Extension Package Example
+  language: yaml
+  codeSnippet: |
+    # mycompany.com/user-extensions@1.0.0.can.yml
+    user-extensions:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0
+      imports:
+        - publisher: standard.org
+          packages:
+            - package: users
+              match: ^
+              version: 1.0.1  # Base package
+
+    # Add new properties to existing User class
+    loyaltyPoints:
+      type: DatatypeProperty
+      domain: users.User  # Extends imported class
+      range: xsd.integer
+      comment: Loyalty program points
+
+    preferredLanguage:
+      type: DatatypeProperty
+      domain: users.User
+      range: xsd.string
+
+# ========================================
+# VERSIONING STRATEGY
+# ========================================
+
+VersioningStrategy:
+  type: ConceptualModel
+  title: Package Versioning Strategy
+  difficulty: Intermediate
+  prerequisite: ExtensionPackagePattern
+  content: |
+    # Package Versioning Strategy
+
+    ## Semantic Versioning (semver)
+
+    Canon uses semantic versioning: `MAJOR.MINOR.PATCH`
+
+    ### Major Version (X.0.0)
+
+    Increment when making **breaking changes**:
+
+    ❌ **Breaking Changes:**
+    - Remove class or property
+    - Rename class or property
+    - Change property type (datatype ↔ object)
+    - Change property range/domain
+    - Change class hierarchy
+    - Remove enum value
+
+    **Example:**
+    ```yaml
+    # v1.0.0
+    User:
+      type: rdfs.Class
+
+    email:
+      type: DatatypeProperty
+      range: string
+
+    # v2.0.0 - BREAKING: removed User class
+    # User class removed
+    ```
+
+    ### Minor Version (x.Y.0)
+
+    Increment when adding **backward-compatible features**:
+
+    ✅ **Compatible Additions:**
+    - Add new class
+    - Add new property
+    - Add new enum value
+    - Add optional property to existing class
+    - Add subclass
+
+    **Example:**
+    ```yaml
+    # v1.0.0
+    User:
+      type: rdfs.Class
+
+    # v1.1.0 - Added phone property (compatible)
+    phone:
+      type: DatatypeProperty
+      domain: User
+      range: string
+    ```
+
+    ### Patch Version (x.y.Z)
+
+    Increment for **non-breaking fixes**:
+
+    ✅ **Patch Changes:**
+    - Fix typos in labels/comments
+    - Add/improve documentation
+    - Fix validation errors
+    - Clarify existing semantics
+
+    **Example:**
+    ```yaml
+    # v1.0.0
+    User:
+      comment: A user  # Vague
+
+    # v1.0.1 - Improved documentation
+    User:
+      comment: A registered user of the system with authentication credentials
+    ```
+
+    ## Pre-Release Versions
+
+    Use major version 0 for unstable packages:
+
+    ```yaml
+    version: 0.1.0  # Still in development
+    version: 0.5.0  # Major changes allowed
+    version: 1.0.0  # Stable release - commit to API
+    ```
+
+    **0.x.y semantics:**
+    - Breaking changes allowed in minor version
+    - Rapid iteration expected
+    - Not for production use
+
+    ## Version Constraints
+
+    When importing packages:
+
+    ```yaml
+    imports:
+      - publisher: mycompany.com
+        packages:
+          - package: types
+            match: ^
+            version: 1.0.1      # Exact: only 1.0.0
+          - package: utils
+            match: ~
+            version: 1.2.0     # Patch: 1.2.x (1.2.0, 1.2.1, ...)
+          - package: common
+            match: ^
+            version: 1.0.1    # Minor: 1.x.x (1.0.0, 1.1.0, 1.2.0, ...)
+          - package: legacy
+            match: "*"
+            version: 0.5.0    # Any: any version (avoid!)
+    ```
+
+    **Best practices:**
+    - Use `=` for core dependencies (stability)
+    - Use `^` for most dependencies (get fixes)
+    - Use `~` when minor updates too risky
+    - Avoid `*` in production
+
+# ========================================
+# PUBLISHING LIFECYCLE
+# ========================================
+
+PublishingLifecycle:
+  type: ConceptualModel
+  title: Package Publishing Lifecycle
+  difficulty: Advanced
+  prerequisite: VersioningStrategy
+  content: |
+    # Package Publishing Lifecycle
+
+    ## Phase 1: Development (0.x.y)
+
+    **Goal:** Rapid iteration, explore design space
+
+    ```yaml
+    version: 0.1.0  # Initial alpha
+    version: 0.2.0  # Breaking changes OK
+    version: 0.5.0  # Approaching stability
+    ```
+
+    **Activities:**
+    - Experiment with class hierarchies
+    - Add/remove entities freely
+    - Breaking changes allowed
+    - Publish to private registry
+    - Limited audience (team only)
+
+    **When to move to 1.0.0:**
+    - Schema stabilized
+    - Used in production application
+    - Ready to commit to API
+    - Documentation complete
+
+    ## Phase 2: Stable Release (1.x.y)
+
+    **Goal:** Stability, backward compatibility
+
+    ```yaml
+    version: 1.0.0  # Initial stable release
+    version: 1.1.0  # Add features
+    version: 1.2.0  # More features
+    version: 1.2.1  # Bug fix
+    ```
+
+    **Activities:**
+    - Only backward-compatible changes
+    - Careful consideration before changes
+    - Maintain changelog
+    - Publish to public registry
+    - Broader audience
+
+    **Breaking change needed?**
+    → Plan migration to 2.0.0
+
+    ## Phase 3: Evolution (2.x.y)
+
+    **Goal:** Major improvements while supporting migration
+
+    ```yaml
+    # Support both versions during transition
+    version: 1.9.0  # Last 1.x release
+    version: 2.0.0  # Breaking changes
+    ```
+
+    **Migration Strategy:**
+
+    1. **Announce deprecation** in 1.x:
+       ```yaml
+       # v1.5.0
+       oldProperty:
+         type: DatatypeProperty
+         deprecated: true
+         comment: Use newProperty instead. Will be removed in 2.0.0
+       ```
+
+    2. **Add replacements** in 1.x:
+       ```yaml
+       # v1.5.0
+       newProperty:
+         type: DatatypeProperty
+         comment: Replaces oldProperty
+       ```
+
+    3. **Give users time** (3-6 months)
+
+    4. **Release 2.0.0** with breaking changes:
+       ```yaml
+       # v2.0.0
+       # oldProperty removed
+       newProperty:
+         type: DatatypeProperty
+       ```
+
+    5. **Document migration** in CHANGELOG:
+       ```markdown
+       # Migration from 1.x to 2.0
+
+       ## Breaking Changes
+
+       1. `oldProperty` removed → use `newProperty`
+       2. `User` class renamed to `Account`
+       ```
+
+    ## Phase 4: Maintenance
+
+    **Goal:** Support existing users while encouraging migration
+
+    ```yaml
+    version: 1.9.1  # Security fix for 1.x
+    version: 2.1.0  # New features in 2.x
+    ```
+
+    **Activities:**
+    - Critical fixes backported to 1.x
+    - New features only in 2.x
+    - Encourage migration
+    - Eventually sunset 1.x
+
+    ## Phase 5: Deprecation
+
+    **Goal:** Graceful end-of-life
+
+    1. **Announce deprecation:**
+       - Blog post
+       - Package metadata
+       - 6-12 month notice
+
+    2. **Mark as deprecated:**
+       ```yaml
+       my-package:
+         type: Package
+         deprecated: true
+         comment: This package is deprecated. Migrate to package-v2
+       ```
+
+    3. **Support timeline:**
+       - Month 0: Deprecation announced
+       - Month 6: Security fixes only
+       - Month 12: No more updates
+       - Month 18: Package removed from registry
+
+# ========================================
+# REGISTRY MANAGEMENT
+# ========================================
+
+RegistryManagement:
+  type: TechnicalExplanation
+  title: Registry Configuration and Management
+  difficulty: Intermediate
+  prerequisite: PublishingLifecycle
+  content: |
+    # Registry Configuration and Management
+
+    ## Registry Types
+
+    ### 1. Public Registries
+
+    Open to everyone:
+
+    ```yaml
+    # GitHub Container Registry (ghcr.io)
+    - url: https://ghcr.io
+      public: true
+
+    # Docker Hub
+    - url: https://registry.hub.docker.com
+      public: true
+    ```
+
+    ### 2. Private Registries
+
+    Organization-internal:
+
+    ```yaml
+    # Azure Container Registry
+    - url: https://mycompany.azurecr.io
+      auth:
+        username: ${AZURE_USER}
+        password: ${AZURE_TOKEN}
+
+    # Self-hosted
+    - url: https://registry.mycompany.com
+      auth:
+        username: ${REGISTRY_USER}
+        password: ${REGISTRY_PASSWORD}
+    ```
+
+    ### 3. Local Registry (Development)
+
+    For testing:
+
+    ```bash
+    # Start local registry
+    docker run -d -p 5000:5000 registry:2
+
+    # Configure Canon
+    # .canon/config.yml
+    registries:
+      - url: http://localhost:5000
+        insecure: true  # Only for localhost!
+    ```
+
+    ## Registry Configuration File
+
+    Create `.canon/config.yml`:
+
+    ```yaml
+    # Registry priority (checked in order)
+    registries:
+      # Local workspace (highest priority)
+      - type: workspace
+        path: specs
+
+      # Private company registry
+      - url: https://registry.mycompany.com
+        auth:
+          username: ${COMPANY_USER}
+          password: ${COMPANY_TOKEN}
+
+      # Public registries
+      - url: https://ghcr.io/canon-protocol
+        public: true
+
+      - url: https://ghcr.io/industry-standards
+        public: true
+
+    # Cache settings
+    cache:
+      directory: .canon/packages
+      maxSize: 1GB
+      ttl: 7days
+    ```
+
+    ## Authentication
+
+    ### Environment Variables
+
+    ```bash
+    # Set credentials
+    export GITHUB_TOKEN=ghp_xxxxx
+    export AZURE_TOKEN=xxxxx
+
+    # Use in config
+    # .canon/config.yml
+    registries:
+      - url: https://ghcr.io
+        auth:
+          username: ${GITHUB_USER}
+          password: ${GITHUB_TOKEN}
+    ```
+
+    ### Login Command
+
+    ```bash
+    # GitHub Container Registry
+    echo $GITHUB_TOKEN | canon auth login ghcr.io \
+      -u $GITHUB_USER \
+      --password-stdin
+
+    # Azure Container Registry
+    az acr login --name myregistry
+    ```
+
+    ## Publishing Workflow
+
+    ```bash
+    # 1. Validate package
+    canon validate
+
+    # 2. Test locally
+    canon generate --output generated
+
+    # 3. Bump version
+    # Edit version in .can.yml
+
+    # 4. Tag in git
+    git tag -a v1.1.0 -m "Release 1.1.0"
+
+    # 5. Publish to registry
+    canon package publish specs/mycompany.com/myapp@1.1.0.can.yml
+
+    # 6. Verify
+    canon package install ghcr.io/mycompany/canon/myapp:1.1.0
+    ```
+
+# ========================================
+# ECOSYSTEM BEST PRACTICES
+# ========================================
+
+EcosystemBestPractices:
+  type: ConceptualModel
+  title: Ecosystem Best Practices
+  difficulty: Advanced
+  content: |
+    # Ecosystem Best Practices
+
+    ## 1. Namespace Hygiene
+
+    **Use domains you control:**
+
+    ```yaml
+    # ✅ GOOD - you own mycompany.com
+    publisher: mycompany.com
+
+    # ❌ BAD - you don't own google.com
+    publisher: google.com
+    ```
+
+    **Organize by subdomain:**
+
+    ```yaml
+    # Production packages
+    publisher: mycompany.com
+
+    # Development/testing
+    publisher: dev.mycompany.com
+
+    # Personal experiments
+    publisher: username.mycompany.com
+    ```
+
+    ## 2. Package Naming
+
+    **Clear, descriptive names:**
+
+    ```yaml
+    # ✅ GOOD
+    package: user-management
+    package: financial-reporting
+    package: core-types
+
+    # ❌ BAD
+    package: stuff
+    package: temp
+    package: package1
+    ```
+
+    **Use descriptive hyphenated names:**
+
+    ```yaml
+    package: finance
+    package: finance-accounting
+    package: finance-reporting
+    ```
+
+    ## 3. Documentation
+
+    **Always include:**
+
+    ```yaml
+    # Add labels and comments to ALL entities
+    MyClass:
+      type: rdfs.Class
+      label: Human-readable name
+      comment: Detailed description of purpose and usage
+    ```
+
+    **Create README.md:**
+
+    ```markdown
+    # finance.org/accounting@1.0.0
+
+    Vocabulary for accounting and financial reporting.
+
+    ## Classes
+    - **Account** - Financial account
+    - **Transaction** - Financial transaction
+
+    ## Usage
+    \`\`\`yaml
+    imports:
+      - publisher: finance.org
+        packages:
+          - package: accounting
+            match: ^
+            version: 1.0.1
+    \`\`\`
+    ```
+
+    ## 4. Stability
+
+    **Pre-1.0.0:**
+    - Iterate freely
+    - Breaking changes OK
+    - Private registry only
+
+    **Post-1.0.0:**
+    - Avoid breaking changes
+    - Deprecate before removing
+    - Maintain changelog
+
+    ## 5. Dependencies
+
+    **Pin core dependencies:**
+
+    ```yaml
+    imports:
+      - publisher: canon-protocol.org
+        packages:
+          - package: core-rdf
+            match: ^
+            version: 1.0.1  # Exact version for stability
+    ```
+
+    **Allow flexibility for libraries:**
+
+    ```yaml
+    imports:
+      - publisher: mycompany.com
+        packages:
+          - package: utils
+            match: ^
+            version: 1.0.1  # Minor updates OK
+    ```
+
+    ## 6. Testing
+
+    **Validate before publishing:**
+
+    ```bash
+    # Must pass before publish
+    canon validate
+
+    # Test code generation
+    canon generate --output test-generated
+    ```
+
+    **Integration testing:**
+
+    ```yaml
+    # test-usage@1.0.0.can.yml
+    imports:
+      - publisher: mycompany.com
+        packages:
+          - package: mypackage
+            match: "="
+            version: 1.1.0
+
+    # Try using the package
+    testEntity:
+      type: mypackage.MyClass
+    ```
+
+    ## 7. Collaboration
+
+    **Package review checklist:**
+
+    - [ ] Clear purpose and scope
+    - [ ] Follows naming conventions
+    - [ ] All entities documented
+    - [ ] Proper semantic versioning
+    - [ ] No circular dependencies
+    - [ ] Validation passes
+    - [ ] Code generates successfully
+    - [ ] Changelog updated
+    - [ ] Migration guide (if breaking changes)
+
+    ## 8. Discovery
+
+    **Make packages discoverable:**
+
+    ```yaml
+    # Add metadata to your package
+    my-package:
+      type: Package
+      publisher: mycompany.com
+      version: 1.0.0
+      keywords:
+        - domain
+        - subdomain
+        - use-case
+      homepage: https://github.com/mycompany/mypackage
+      repository: https://github.com/mycompany/mypackage
+    ```
+
+    ## 9. Long-Term Maintenance
+
+    **Plan for longevity:**
+
+    - Regular security updates
+    - Dependency updates
+    - Community engagement
+    - Clear ownership
+    - Succession planning
+
+    ## 10. Community Standards
+
+    **Follow community conventions:**
+
+    - Use standard vocabularies when available (RDF, OWL, XSD)
+    - Contribute to domain standards
+    - Share reusable patterns
+    - Document deviations from standards
+
+PackageEcosystemSummary:
+  type: ConceptualModel
+  title: Package Ecosystem Summary
+  difficulty: Intermediate
+  content: |
+    # Package Ecosystem Summary
+
+    ## Key Concepts
+
+    1. **Packages** - Self-contained Canon documents
+    2. **Registries** - OCI-compliant package repositories
+    3. **Dependencies** - Explicit imports with version constraints
+    4. **Versioning** - Semantic versioning (major.minor.patch)
+    5. **Publishing** - Upload to OCI registries
+    6. **Consumption** - Import and use published packages
+
+    ## Package Types
+
+    - **Core Vocabularies** - Foundational, stable
+    - **Domain Vocabularies** - Industry-specific
+    - **Application Schemas** - Project-specific
+    - **Extension Packages** - Extend existing vocabularies
+
+    ## Lifecycle
+
+    ```
+    0.x.y (development)
+    → 1.0.0 (stable)
+    → 1.x.y (evolution)
+    → 2.0.0 (breaking changes)
+    → deprecated
+    → retired
+    ```
+
+    ## Best Practices
+
+    ✅ **Do:**
+    - Use semantic versioning correctly
+    - Document thoroughly
+    - Validate before publishing
+    - Plan for backward compatibility
+    - Maintain changelog
+    - Use meaningful names
+
+    ❌ **Don't:**
+    - Break compatibility in minor versions
+    - Publish without validation
+    - Use generic names
+    - Skip documentation
+    - Ignore deprecation policies
+
+    ## Success Metrics
+
+    A healthy package ecosystem has:
+    - Clear ownership
+    - Regular updates
+    - Complete documentation
+    - Active usage
+    - Community contributions
+    - Stable APIs
+    - Migration guides
