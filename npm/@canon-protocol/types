@@ -1,0 +1,20 @@
+{
+  "name": "@canon-protocol/types",
+  "dist-tags": { "latest": "7.4.0" },
+  "versions": {
+    "7.4.0": {
+      "name": "@canon-protocol/types",
+      "version": "7.4.0",
+      "description": "Auto-generated TypeScript type definitions and interfaces for Canon Protocol",
+      "dependencies": {
+        "js-yaml": "^4.1.0"
+      },
+      "engines": { "node": ">=18.0.0" },
+      "dist": {
+        "shasum": "ad5e72ac03a32f6f3ed132814126f73e265d69a4",
+        "integrity": "sha512-i8+wQLvYMI4m9CacIP5KhALpjhXpkV5v0GN0syOUbUJgXh7puILtW0MTGugFcBvAal27VZw+U3X7T4L80gLb5A==",
+        "tarball": "https://canon-protocol.org/packages/@canon-protocol/types/types-7.4.0.tgz"
+      }
+    }
+  }
+}
