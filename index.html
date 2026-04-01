@@ -7,12 +7,12 @@
     <meta name="description" content="A semantic data modeling system for defining versioned ontologies with YAML.">
     <style>
         :root {
-            --text: #1a1a1a;
-            --text-secondary: #555;
-            --bg: #fff;
-            --border: #e0e0e0;
-            --code-bg: #f5f5f5;
-            --accent: #2563eb;
+            --text: #e4e4e7;
+            --text-secondary: #a1a1aa;
+            --bg: #0f0f11;
+            --border: #27272a;
+            --code-bg: #18181b;
+            --accent: #60a5fa;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -114,37 +114,56 @@
             text-decoration: underline;
         }
 
-        .agents {
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
+        .tabs {
             margin-top: 1rem;
         }
 
-        .agent-card {
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 1rem 1.25rem;
+        .tab-buttons {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
         }
 
-        .agent-card h3 {
-            margin-top: 0;
-            margin-bottom: 0.25rem;
+        .tab-btn {
+            padding: 0.5rem 1.25rem;
+            background: none;
+            border: 1px solid transparent;
+            border-bottom: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: inherit;
+            color: var(--text-secondary);
+            border-radius: 6px 6px 0 0;
+            margin-bottom: -1px;
         }
 
-        .agent-card p {
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            border-color: var(--border);
+            background: var(--code-bg);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .tab-panel {
+            display: none;
+            padding: 1rem 0;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .tab-panel p {
             font-size: 0.9rem;
             margin-bottom: 0.5rem;
         }
 
-        .agent-card pre {
+        .tab-panel pre {
             margin-bottom: 0;
-        }
-
-        .browse-link {
-            display: inline-block;
-            margin-top: 0.5rem;
-            font-size: 0.9rem;
         }
 
         footer {
@@ -181,9 +200,14 @@
 
             <p>Add the skill to your project and your agent will know how to work with Canon Protocol:</p>
 
-            <div class="agents">
-                <div class="agent-card">
-                    <h3>Claude Code</h3>
+            <div class="tabs">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="claude">Claude Code</button>
+                    <button class="tab-btn" data-tab="gemini">Gemini CLI</button>
+                    <button class="tab-btn" data-tab="codex">OpenAI Codex</button>
+                </div>
+
+                <div id="tab-claude" class="tab-panel active">
                     <p>Install the skill from the canon-protocol/skills repository:</p>
                     <pre><code>claude mcp add-skill canon https://github.com/canon-protocol/skills/tree/main/skills/canon</code></pre>
                     <p>Or manually place it in your project:</p>
@@ -192,16 +216,14 @@ curl -o .claude/skills/canon/SKILL.md \
   https://raw.githubusercontent.com/canon-protocol/skills/main/skills/canon/SKILL.md</code></pre>
                 </div>
 
-                <div class="agent-card">
-                    <h3>Gemini CLI</h3>
+                <div id="tab-gemini" class="tab-panel">
                     <p>Add the skill to the shared agents directory:</p>
                     <pre><code>mkdir -p .agents/skills/canon
 curl -o .agents/skills/canon/SKILL.md \
   https://raw.githubusercontent.com/canon-protocol/skills/main/skills/canon/SKILL.md</code></pre>
                 </div>
 
-                <div class="agent-card">
-                    <h3>OpenAI Codex</h3>
+                <div id="tab-codex" class="tab-panel">
                     <p>Add the skill to the shared agents directory:</p>
                     <pre><code>mkdir -p .agents/skills/canon
 curl -o .agents/skills/canon/SKILL.md \
@@ -246,20 +268,19 @@ fullName:
   range: xsd.string</code></pre>
         </section>
 
-        <section>
-            <h2>Resources</h2>
-            <ul>
-                <li><a href="/index.txt">Browse published packages</a></li>
-                <li><a href="https://github.com/canon-protocol/canons">Source specifications</a></li>
-                <li><a href="https://github.com/canon-protocol/skills">Agent Skills</a></li>
-                <li><a href="https://github.com/canon-protocol/canon-sdk-csharp">C# SDK</a></li>
-                <li><a href="https://github.com/canon-protocol/canon-sdk-typescript">TypeScript SDK</a></li>
-            </ul>
-        </section>
-
         <footer>
             <p>&copy; 2025 Canon Protocol</p>
         </footer>
     </div>
+    <script>
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+                document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+    </script>
 </body>
 </html>
