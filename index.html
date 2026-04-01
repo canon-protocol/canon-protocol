@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canon Protocol</title>
-    <meta name="description" content="A semantic data modeling system for defining versioned ontologies with YAML.">
+    <meta name="description" content="An open protocol for defining, versioning, and sharing semantic ontologies across distributed publishers.">
     <style>
         :root {
             --text: #e4e4e7;
@@ -180,18 +180,24 @@
         <header>
             <img src="/static/img/canon-logo.png" alt="Canon Protocol">
             <h1>Canon Protocol</h1>
-            <p>A semantic data modeling system for defining versioned ontologies using YAML.</p>
+            <p>An open protocol for defining, versioning, and sharing semantic ontologies across distributed publishers.</p>
         </header>
 
         <section>
-            <h2>What is Canon Protocol?</h2>
-            <p>Canon Protocol lets you define typed schemas &mdash; classes, properties, and instances &mdash; in simple <code>.can.yml</code> files. It draws on RDF and OWL concepts but is designed for developer-friendly authoring, versioned package management, and decentralized publishing.</p>
-            <ul>
-                <li>Define data models with classes, properties, and type relationships</li>
-                <li>Import and compose packages from any publisher domain</li>
-                <li>Validate ontologies with a built-in rule engine</li>
-                <li>Publish packages to your own domain &mdash; no central registry required</li>
-            </ul>
+            <h2>Why Canon Protocol?</h2>
+            <p>Knowledge lives in the heads of domain experts, but there is no standard way to turn that knowledge into durable, machine-readable definitions that others can build on. Canon Protocol changes that.</p>
+
+            <h3>Stable resource identifiers</h3>
+            <p>Every class, property, and instance gets a persistent, globally unique identifier tied to a publisher domain. These identifiers don't break when systems change &mdash; they give people and machines a consistent way to refer to the same concepts.</p>
+
+            <h3>Distributed publishing</h3>
+            <p>Anyone with a domain can publish ontologies. There is no central authority deciding what types are valid. Domain experts &mdash; biologists, engineers, legal scholars &mdash; can develop their knowledge into formal schemas and share them directly from their own infrastructure.</p>
+
+            <h3>Versioned ontologies</h3>
+            <p>Ontologies evolve. Canon Protocol uses semantic versioning so publishers can improve their schemas without breaking consumers on earlier versions. Import what you need, pin to a version range, and upgrade on your own schedule.</p>
+
+            <h3>Built for AI agents</h3>
+            <p>When AI agents work with Canon ontologies, they are grounded in a shared vocabulary with formally defined types and relationships. The Canon CLI validates that data conforms to its schema &mdash; giving you guarantees about the shape of information rather than hoping the model got it right. Validated structure means higher confidence and fewer hallucinations.</p>
         </section>
 
         <section>
@@ -268,8 +274,13 @@ fullName:
   range: xsd.string</code></pre>
         </section>
 
+        <section>
+            <h2>About</h2>
+            <p>Canon Protocol was created by <a href="https://github.com/paulfryer">Paul Fryer</a> in 2024 while building Genval, a startup focused on letting AI generate code from structured documentation. When existing schema formats like JSON Schema and RDF fell short on distributed publishing, versioning, and readability &mdash; he built Canon Protocol from scratch.</p>
+        </section>
+
         <footer>
-            <p>&copy; 2025 Canon Protocol</p>
+            <p>&copy; 2025 Genval LLC</p>
         </footer>
     </div>
     <script>
