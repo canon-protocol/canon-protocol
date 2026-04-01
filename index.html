@@ -197,7 +197,7 @@
             <p>Ontologies evolve. Canon Protocol uses semantic versioning so publishers can improve their schemas without breaking consumers on earlier versions. Import what you need, pin to a version range, and upgrade on your own schedule.</p>
 
             <h3>Built for AI agents</h3>
-            <p>When AI agents work with Canon ontologies, they are grounded in a shared vocabulary with formally defined types and relationships. The Canon CLI validates that data conforms to its schema &mdash; giving you guarantees about the shape of information rather than hoping the model got it right. Validated structure means higher confidence and fewer hallucinations.</p>
+            <p>When AI agents work with Canon ontologies, they are grounded in a shared vocabulary with formally defined types and relationships. The Canon CLI validates that data conforms to its schema &mdash; giving you guarantees about the shape of information rather than hoping the model got it right. Structured, validated data reduces ambiguity and gives agents less room to hallucinate.</p>
         </section>
 
         <section>
@@ -209,8 +209,7 @@
             <div class="tabs">
                 <div class="tab-buttons">
                     <button class="tab-btn active" data-tab="claude">Claude Code</button>
-                    <button class="tab-btn" data-tab="gemini">Gemini CLI</button>
-                    <button class="tab-btn" data-tab="codex">OpenAI Codex</button>
+                    <button class="tab-btn" data-tab="other">Gemini CLI / OpenAI Codex / OpenClaw</button>
                 </div>
 
                 <div id="tab-claude" class="tab-panel active">
@@ -222,15 +221,8 @@ curl -o .claude/skills/canon/SKILL.md \
   https://raw.githubusercontent.com/canon-protocol/skills/main/skills/canon/SKILL.md</code></pre>
                 </div>
 
-                <div id="tab-gemini" class="tab-panel">
-                    <p>Add the skill to the shared agents directory:</p>
-                    <pre><code>mkdir -p .agents/skills/canon
-curl -o .agents/skills/canon/SKILL.md \
-  https://raw.githubusercontent.com/canon-protocol/skills/main/skills/canon/SKILL.md</code></pre>
-                </div>
-
-                <div id="tab-codex" class="tab-panel">
-                    <p>Add the skill to the shared agents directory:</p>
+                <div id="tab-other" class="tab-panel">
+                    <p>Any agent that supports the <a href="https://agentskills.io">Agent Skills</a> convention can use the shared <code>.agents/skills/</code> directory:</p>
                     <pre><code>mkdir -p .agents/skills/canon
 curl -o .agents/skills/canon/SKILL.md \
   https://raw.githubusercontent.com/canon-protocol/skills/main/skills/canon/SKILL.md</code></pre>
