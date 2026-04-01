@@ -111,12 +111,14 @@
         .y-comment { color: #52525b; font-style: italic; }
 
         a {
-            color: var(--accent);
+            color: var(--text);
             text-decoration: none;
+            border-bottom: 1px solid var(--border);
         }
 
         a:hover {
-            text-decoration: underline;
+            color: var(--accent);
+            border-bottom-color: var(--accent);
         }
 
         .tabs {
