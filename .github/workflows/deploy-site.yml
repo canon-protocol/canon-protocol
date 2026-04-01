@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
   pages: write
   id-token: write
 
@@ -83,7 +84,7 @@ jobs:
           for dir in */; do
             dir_name="${dir%/}"
             # Skip non-package directories
-            [[ "$dir_name" == "_canons" || "$dir_name" == "_site" || "$dir_name" == "static" || "$dir_name" == ".github" ]] && continue
+            [[ "$dir_name" == "_canons" || "$dir_name" == "_site" || "$dir_name" == "static" || "$dir_name" == ".github" || "$dir_name" == "npm" || "$dir_name" == "packages" ]] && continue
             for file in "$dir"*.can.yml; do
               [[ -f "$file" ]] || continue
               version="$(basename "$file" .can.yml)"
@@ -97,6 +98,115 @@ jobs:
 
       - name: Clean up canons checkout
         run: rm -rf _canons
+
+      - name: Setup Node.js and npm auth
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://npm.pkg.github.com'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build npm registry from GitHub Packages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PACKAGES="cli sdk types"
+          SCOPE="@canon-protocol"
+          SITE_URL="https://canon-protocol.org"
+
+          mkdir -p "npm/$SCOPE"
+
+          for PKG in $PACKAGES; do
+            echo "=== Processing $SCOPE/$PKG ==="
+
+            # Discover all versions from GitHub Packages API
+            VERSIONS=$(gh api orgs/canon-protocol/packages/npm/$SCOPE%2F$PKG/versions \
+              --jq '.[].metadata.container.tags // [.name] | .[]' 2>/dev/null || true)
+
+            if [ -z "$VERSIONS" ]; then
+              # Fallback: query npm registry directly for version list
+              VERSIONS=$(npm view "$SCOPE/$PKG" versions --json --registry=https://npm.pkg.github.com 2>/dev/null \
+                | node -e "const v=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); (Array.isArray(v)?v:[v]).forEach(x=>console.log(x))" 2>/dev/null || true)
+            fi
+
+            if [ -z "$VERSIONS" ]; then
+              echo "  WARNING: No versions found for $SCOPE/$PKG, skipping"
+              continue
+            fi
+
+            TARBALL_DIR="packages/$SCOPE/$PKG"
+            mkdir -p "$TARBALL_DIR"
+
+            # Start building packument JSON
+            LATEST=""
+            VERSION_ENTRIES=""
+
+            for VER in $VERSIONS; do
+              echo "  Downloading $SCOPE/$PKG@$VER..."
+
+              # Download tarball via npm pack
+              TGZ_FILE=$(cd /tmp && npm pack "$SCOPE/$PKG@$VER" --registry=https://npm.pkg.github.com 2>/dev/null | tail -1)
+              if [ ! -f "/tmp/$TGZ_FILE" ]; then
+                echo "  WARNING: Failed to download $VER, skipping"
+                continue
+              fi
+
+              DEST="$PKG-$VER.tgz"
+              cp "/tmp/$TGZ_FILE" "$TARBALL_DIR/$DEST"
+              rm -f "/tmp/$TGZ_FILE"
+
+              # Compute hashes
+              SHASUM=$(sha1sum "$TARBALL_DIR/$DEST" | cut -d' ' -f1)
+              INTEGRITY="sha512-$(openssl dgst -sha512 -binary "$TARBALL_DIR/$DEST" | openssl base64 -A)"
+
+              # Extract package.json from tarball
+              TMPDIR=$(mktemp -d)
+              tar xzf "$TARBALL_DIR/$DEST" -C "$TMPDIR" package/package.json
+              PKG_JSON="$TMPDIR/package/package.json"
+
+              # Build version entry using node
+              ENTRY=$(node -e "
+                const pkg = require('$PKG_JSON');
+                const entry = {
+                  name: pkg.name,
+                  version: pkg.version,
+                  description: pkg.description || '',
+                  dependencies: pkg.dependencies || {},
+                  engines: pkg.engines || {},
+                  dist: {
+                    shasum: '$SHASUM',
+                    integrity: '$INTEGRITY',
+                    tarball: '$SITE_URL/packages/$SCOPE/$PKG/$DEST'
+                  }
+                };
+                if (pkg.bin) entry.bin = pkg.bin;
+                console.log(JSON.stringify(entry));
+              ")
+
+              rm -rf "$TMPDIR"
+
+              LATEST="$VER"
+              if [ -n "$VERSION_ENTRIES" ]; then
+                VERSION_ENTRIES="$VERSION_ENTRIES,"
+              fi
+              VERSION_ENTRIES="$VERSION_ENTRIES\"$VER\":$ENTRY"
+
+              echo "  Done: $VER"
+            done
+
+            # Write packument JSON
+            if [ -n "$LATEST" ]; then
+              echo "{\"name\":\"$SCOPE/$PKG\",\"dist-tags\":{\"latest\":\"$LATEST\"},\"versions\":{$VERSION_ENTRIES}}" \
+                | node -e "process.stdout.write(JSON.stringify(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')),null,2))" \
+                > "npm/$SCOPE/$PKG"
+              echo "  Wrote packument with latest=$LATEST"
+            fi
+          done
+
+          echo ""
+          echo "npm registry build complete."
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
