@@ -4,71 +4,262 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Canon Protocol</title>
-    <meta name="description" content="Publisher identity for canon-protocol.org">
+    <meta name="description" content="A semantic data modeling system for defining versioned ontologies with YAML.">
     <style>
+        :root {
+            --text: #1a1a1a;
+            --text-secondary: #555;
+            --bg: #fff;
+            --border: #e0e0e0;
+            --code-bg: #f5f5f5;
+            --accent: #2563eb;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
-            max-width: 600px;
-            margin: 4rem auto;
-            padding: 0 1rem;
-            color: #333;
+            color: var(--text);
+            background: var(--bg);
         }
-        .logo {
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        header {
+            padding: 3rem 0 2rem;
+            text-align: center;
+        }
+
+        header img {
             display: block;
-            max-width: 200px;
-            margin: 0 auto 2rem;
+            max-width: 160px;
+            margin: 0 auto 1.5rem;
         }
-        .banner {
-            background: #FEF3C7;
-            border: 2px solid #F59E0B;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-        .banner h2 {
-            margin: 0;
-            color: #92400E;
-            font-size: 1.5rem;
-        }
-        h1 {
+
+        header h1 {
             font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 520px;
+            margin: 0 auto;
+        }
+
+        section {
+            padding: 2rem 0;
+            border-top: 1px solid var(--border);
+        }
+
+        h2 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        p, li {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        ul {
+            padding-left: 1.25rem;
             margin-bottom: 1rem;
-            text-align: center;
         }
-        p {
-            margin: 1rem 0;
-            text-align: center;
-        }
+
         code {
-            background: #f5f5f5;
-            padding: 0.2rem 0.4rem;
+            font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+            font-size: 0.875em;
+            background: var(--code-bg);
+            padding: 0.15rem 0.35rem;
             border-radius: 3px;
-            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-            font-size: 0.9em;
         }
-        footer {
-            margin-top: 4rem;
-            padding-top: 2rem;
-            border-top: 1px solid #e0e0e0;
-            color: #666;
+
+        pre {
+            background: var(--code-bg);
+            padding: 1rem 1.25rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0.75rem 0 1rem;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .agents {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            margin-top: 1rem;
+        }
+
+        .agent-card {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+        }
+
+        .agent-card h3 {
+            margin-top: 0;
+            margin-bottom: 0.25rem;
+        }
+
+        .agent-card p {
             font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .agent-card pre {
+            margin-bottom: 0;
+        }
+
+        .browse-link {
+            display: inline-block;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        footer {
+            padding: 2rem 0;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
             text-align: center;
         }
     </style>
 </head>
 <body>
-    <img src="/static/img/canon-logo.png" alt="Canon Protocol Logo" class="logo">
+    <div class="container">
+        <header>
+            <img src="/static/img/canon-logo.png" alt="Canon Protocol">
+            <h1>Canon Protocol</h1>
+            <p>A semantic data modeling system for defining versioned ontologies using YAML.</p>
+        </header>
 
-    <h1>Canon Protocol</h1>
+        <section>
+            <h2>What is Canon Protocol?</h2>
+            <p>Canon Protocol lets you define typed schemas &mdash; classes, properties, and instances &mdash; in simple <code>.can.yml</code> files. It draws on RDF and OWL concepts but is designed for developer-friendly authoring, versioned package management, and decentralized publishing.</p>
+            <ul>
+                <li>Define data models with classes, properties, and type relationships</li>
+                <li>Import and compose packages from any publisher domain</li>
+                <li>Validate ontologies with a built-in rule engine</li>
+                <li>Publish packages to your own domain &mdash; no central registry required</li>
+            </ul>
+        </section>
 
-    <p>
-        This is the publisher identity site for <code>canon-protocol.org</code> specifications.
-    </p>
+        <section>
+            <h2>Get Started with Agent Skills</h2>
+            <p>The fastest way to start using Canon Protocol is with the <strong>canon</strong> <a href="https://agentskills.io">Agent Skill</a>. It teaches your coding agent to install the CLI, read Canon documentation, and author ontologies &mdash; all from a single skill file.</p>
 
-    <footer>
-        <p>© 2025 Canon Protocol</p>
-    </footer>
+            <p>Add the skill to your project and your agent will know how to work with Canon Protocol:</p>
+
+            <div class="agents">
+                <div class="agent-card">
+                    <h3>Claude Code</h3>
+                    <p>Install the skill from the canon-protocol/skills repository:</p>
+                    <pre><code>claude mcp add-skill canon https://github.com/canon-protocol/skills/tree/main/skills/canon</code></pre>
+                    <p>Or manually place it in your project:</p>
+                    <pre><code>mkdir -p .claude/skills/canon
+curl -o .claude/skills/canon/SKILL.md \
+  https://raw.githubusercontent.com/canon-protocol/skills/main/skills/canon/SKILL.md</code></pre>
+                </div>
+
+                <div class="agent-card">
+                    <h3>Gemini CLI</h3>
+                    <p>Add the skill to the shared agents directory:</p>
+                    <pre><code>mkdir -p .agents/skills/canon
+curl -o .agents/skills/canon/SKILL.md \
+  https://raw.githubusercontent.com/canon-protocol/skills/main/skills/canon/SKILL.md</code></pre>
+                </div>
+
+                <div class="agent-card">
+                    <h3>OpenAI Codex</h3>
+                    <p>Add the skill to the shared agents directory:</p>
+                    <pre><code>mkdir -p .agents/skills/canon
+curl -o .agents/skills/canon/SKILL.md \
+  https://raw.githubusercontent.com/canon-protocol/skills/main/skills/canon/SKILL.md</code></pre>
+                </div>
+            </div>
+
+            <p style="margin-top: 1rem;">Once installed, ask your agent to <em>"create a new Canon ontology"</em> or <em>"explain Canon Protocol"</em> and it will activate the skill automatically.</p>
+        </section>
+
+        <section>
+            <h2>A Minimal Example</h2>
+            <p>A Canon package defines classes and properties in a single YAML file:</p>
+            <pre><code>my-schema:
+  type: Package
+  publisher: mycompany.com
+  version: 1.0.0
+  imports:
+    - publisher: canon-protocol.org
+      packages:
+        - package: core-rdf
+          match: ^
+          version: 1.0.1
+          alias: rdfs
+        - package: core-owl
+          match: ^
+          version: 2.0.2
+          alias: owl
+        - package: core-xsd
+          match: ^
+          version: 1.0.1
+          alias: xsd
+
+Person:
+  type: rdfs.Class
+  label: Person
+  comment: An individual human being
+
+fullName:
+  type: owl.DatatypeProperty
+  domain: Person
+  range: xsd.string</code></pre>
+        </section>
+
+        <section>
+            <h2>Resources</h2>
+            <ul>
+                <li><a href="/index.txt">Browse published packages</a></li>
+                <li><a href="https://github.com/canon-protocol/canons">Source specifications</a></li>
+                <li><a href="https://github.com/canon-protocol/skills">Agent Skills</a></li>
+                <li><a href="https://github.com/canon-protocol/canon-sdk-csharp">C# SDK</a></li>
+                <li><a href="https://github.com/canon-protocol/canon-sdk-typescript">TypeScript SDK</a></li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>&copy; 2025 Canon Protocol</p>
+        </footer>
+    </div>
 </body>
 </html>
