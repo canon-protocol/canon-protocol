@@ -105,6 +105,11 @@
             padding: 0;
         }
 
+        .y-key { color: #7dd3fc; }
+        .y-val { color: #fbbf24; }
+        .y-str { color: #86efac; }
+        .y-comment { color: #52525b; font-style: italic; }
+
         a {
             color: var(--accent);
             text-decoration: none;
@@ -233,37 +238,114 @@ curl -o .agents/skills/canon/SKILL.md \
         </section>
 
         <section>
-            <h2>A Minimal Example</h2>
-            <p>A Canon package defines classes and properties in a single YAML file:</p>
-            <pre><code>my-schema:
-  type: Package
-  publisher: mycompany.com
-  version: 1.0.0
-  imports:
-    - publisher: canon-protocol.org
-      packages:
-        - package: core-rdf
-          match: ^
-          version: 1.0.1
-          alias: rdfs
-        - package: core-owl
-          match: ^
-          version: 2.0.2
-          alias: owl
-        - package: core-xsd
-          match: ^
-          version: 1.0.1
-          alias: xsd
+            <h2>Example</h2>
 
-Person:
-  type: rdfs.Class
-  label: Person
-  comment: An individual human being
+            <h3>Define an ontology</h3>
+            <p>A Canon package defines classes and properties. This one describes people with addresses:</p>
+            <pre><code><span class="y-key">contacts</span>:
+  <span class="y-key">type</span>: <span class="y-val">Package</span>
+  <span class="y-key">publisher</span>: <span class="y-str">mycompany.com</span>
+  <span class="y-key">version</span>: <span class="y-str">1.0.0</span>
+  <span class="y-key">imports</span>:
+    - <span class="y-key">publisher</span>: <span class="y-str">canon-protocol.org</span>
+      <span class="y-key">packages</span>:
+        - <span class="y-key">package</span>: <span class="y-str">core-rdf</span>
+          <span class="y-key">match</span>: <span class="y-val">^</span>
+          <span class="y-key">version</span>: <span class="y-str">1.0.1</span>
+          <span class="y-key">alias</span>: <span class="y-str">rdfs</span>
+        - <span class="y-key">package</span>: <span class="y-str">core-owl</span>
+          <span class="y-key">match</span>: <span class="y-val">^</span>
+          <span class="y-key">version</span>: <span class="y-str">2.0.2</span>
+          <span class="y-key">alias</span>: <span class="y-str">owl</span>
+        - <span class="y-key">package</span>: <span class="y-str">core-xsd</span>
+          <span class="y-key">match</span>: <span class="y-val">^</span>
+          <span class="y-key">version</span>: <span class="y-str">1.0.1</span>
+          <span class="y-key">alias</span>: <span class="y-str">xsd</span>
 
-fullName:
-  type: owl.DatatypeProperty
-  domain: Person
-  range: xsd.string</code></pre>
+<span class="y-key">Person</span>:
+  <span class="y-key">type</span>: <span class="y-val">rdfs.Class</span>
+  <span class="y-key">label</span>: <span class="y-str">Person</span>
+  <span class="y-key">comment</span>: <span class="y-str">A person in the contacts directory</span>
+
+<span class="y-key">Address</span>:
+  <span class="y-key">type</span>: <span class="y-val">rdfs.Class</span>
+  <span class="y-key">label</span>: <span class="y-str">Address</span>
+
+<span class="y-key">fullName</span>:
+  <span class="y-key">type</span>: <span class="y-val">owl.DatatypeProperty</span>
+  <span class="y-key">domain</span>: <span class="y-val">Person</span>
+  <span class="y-key">range</span>: <span class="y-val">xsd.string</span>
+
+<span class="y-key">email</span>:
+  <span class="y-key">type</span>: <span class="y-val">owl.DatatypeProperty</span>
+  <span class="y-key">domain</span>: <span class="y-val">Person</span>
+  <span class="y-key">range</span>: <span class="y-val">xsd.string</span>
+
+<span class="y-key">hasAddress</span>:
+  <span class="y-key">type</span>: <span class="y-val">owl.ObjectProperty</span>
+  <span class="y-key">domain</span>: <span class="y-val">Person</span>
+  <span class="y-key">range</span>: <span class="y-val">Address</span>
+
+<span class="y-key">street</span>:
+  <span class="y-key">type</span>: <span class="y-val">owl.DatatypeProperty</span>
+  <span class="y-key">domain</span>: <span class="y-val">Address</span>
+  <span class="y-key">range</span>: <span class="y-val">xsd.string</span>
+
+<span class="y-key">city</span>:
+  <span class="y-key">type</span>: <span class="y-val">owl.DatatypeProperty</span>
+  <span class="y-key">domain</span>: <span class="y-val">Address</span>
+  <span class="y-key">range</span>: <span class="y-val">xsd.string</span></code></pre>
+
+            <h3>Create instances</h3>
+            <p>A separate package imports the ontology and creates typed instances with embedded resources:</p>
+            <pre><code><span class="y-key">company-directory</span>:
+  <span class="y-key">type</span>: <span class="y-val">Package</span>
+  <span class="y-key">publisher</span>: <span class="y-str">mycompany.com</span>
+  <span class="y-key">version</span>: <span class="y-str">1.0.0</span>
+  <span class="y-key">imports</span>:
+    - <span class="y-key">publisher</span>: <span class="y-str">mycompany.com</span>
+      <span class="y-key">packages</span>:
+        - <span class="y-key">package</span>: <span class="y-str">contacts</span>
+          <span class="y-key">match</span>: <span class="y-val">^</span>
+          <span class="y-key">version</span>: <span class="y-str">1.0.0</span>
+
+<span class="y-key">alice-smith</span>:
+  <span class="y-key">type</span>: <span class="y-val">Person</span>
+  <span class="y-key">fullName</span>: <span class="y-str">Alice Smith</span>
+  <span class="y-key">email</span>: <span class="y-str">alice@mycompany.com</span>
+  <span class="y-key">hasAddress</span>:
+    <span class="y-key">street</span>: <span class="y-str">742 Evergreen Terrace</span>
+    <span class="y-key">city</span>: <span class="y-str">Springfield</span>
+
+<span class="y-key">bob-jones</span>:
+  <span class="y-key">type</span>: <span class="y-val">Person</span>
+  <span class="y-key">fullName</span>: <span class="y-str">Bob Jones</span>
+  <span class="y-key">email</span>: <span class="y-str">bob@mycompany.com</span>
+  <span class="y-key">hasAddress</span>:
+    <span class="y-key">street</span>: <span class="y-str">221B Baker Street</span>
+    <span class="y-key">city</span>: <span class="y-str">London</span></code></pre>
+        </section>
+
+        <section>
+            <h2>Canon CLI</h2>
+            <p>Install the CLI to validate, install packages, and inspect dependencies:</p>
+            <pre><code>npm config set @canon-protocol:registry https://npm.pkg.github.com
+npm install -g @canon-protocol/cli</code></pre>
+
+            <h3>Install packages</h3>
+            <pre><code><span class="y-comment"># Install a package and its dependencies</span>
+canon install canon-protocol.org/core-rdf
+
+<span class="y-comment"># Install the full documentation bundle</span>
+canon install canon-protocol.org/docs-complete</code></pre>
+
+            <h3>Validate</h3>
+            <pre><code><span class="y-comment"># Validate a file — resolves imports and checks types</span>
+canon validate contacts.can.yml</code></pre>
+
+            <h3>Inspect dependencies</h3>
+            <pre><code><span class="y-comment"># Show the resolved dependency tree</span>
+canon deps contacts.can.yml</code></pre>
         </section>
 
         <section>
