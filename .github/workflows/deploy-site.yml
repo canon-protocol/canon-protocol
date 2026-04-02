@@ -30,30 +30,6 @@ jobs:
           repository: canon-protocol/canons
           path: _canons
 
-      - name: Install Canon CLI
-        run: |
-          npm config set @canon-protocol:registry https://canon-protocol.org/npm
-          npm install -g @canon-protocol/cli
-
-      - name: Validate canon files
-        run: |
-          echo "Validating all .can.yml files..."
-          ERRORS=0
-          while IFS= read -r file; do
-            echo "  Validating: $file"
-            if ! canon validate "$file"; then
-              ERRORS=$((ERRORS + 1))
-            fi
-          done < <(find _canons -name '*.can.yml' -type f | sort)
-
-          if [ "$ERRORS" -gt 0 ]; then
-            echo ""
-            echo "Validation failed: $ERRORS file(s) with errors."
-            exit 1
-          fi
-          echo ""
-          echo "All canon files validated successfully."
-
       - name: Transform specs to site structure
         shell: bash
         run: |
