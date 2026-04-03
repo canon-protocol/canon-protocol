@@ -252,11 +252,12 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           scope: '@canon-protocol'
 
-      - name: Publish new versions to npmjs
+      - name: Publish latest versions to npmjs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         shell: bash
         run: |
           SCOPE="@canon-protocol"
-          # Provenance requires repository.url to match the publishing repo
           PUBLISH_REPO="https://github.com/canon-protocol/canon-protocol"
 
           for PKG_DIR in tarballs/*/; do
@@ -266,40 +267,41 @@ jobs:
             # Get the latest version already on npmjs (if any)
             PUBLISHED=$(npm view "$SCOPE/$PKG" version 2>/dev/null || echo "")
 
-            for TGZ in "$PKG_DIR"*.tgz; do
-              [ -f "$TGZ" ] || continue
-              FILENAME=$(basename "$TGZ")
-              VER=$(echo "$FILENAME" | sed "s/^${PKG}-//; s/\.tgz$//")
+            # Find the latest tarball (highest version, last alphabetically)
+            LATEST_TGZ=$(ls "$PKG_DIR"*.tgz 2>/dev/null | sort -V | tail -1)
+            [ -f "$LATEST_TGZ" ] || { echo "  No tarballs found, skipping"; continue; }
 
-              if [ "$VER" = "$PUBLISHED" ]; then
-                echo "  $VER already published, skipping"
-                continue
-              fi
+            FILENAME=$(basename "$LATEST_TGZ")
+            VER=$(echo "$FILENAME" | sed "s/^${PKG}-//; s/\.tgz$//")
 
-              echo "  Publishing $SCOPE/$PKG@$VER..."
+            if [ "$VER" = "$PUBLISHED" ]; then
+              echo "  $VER already on npmjs, skipping"
+              continue
+            fi
 
-              # Repack tarball with repository.url pointing to this public repo
-              # (npm provenance requires it to match the publishing workflow's repo)
-              REPACK_DIR=$(mktemp -d)
-              tar xzf "$TGZ" -C "$REPACK_DIR"
-              node -e "
-                const pkg = require('$REPACK_DIR/package/package.json');
-                pkg.repository = pkg.repository || {};
-                if (typeof pkg.repository === 'string') pkg.repository = { type: 'git', url: '$PUBLISH_REPO' };
-                else pkg.repository.url = 'git+$PUBLISH_REPO.git';
-                delete pkg.repository.directory;
-                delete pkg.publishConfig;
-                require('fs').writeFileSync('$REPACK_DIR/package/package.json', JSON.stringify(pkg, null, 2) + '\n');
-              "
-              REPACKED_TGZ=$(mktemp --suffix=.tgz)
-              tar czf "$REPACKED_TGZ" -C "$REPACK_DIR" package
-              rm -rf "$REPACK_DIR"
+            echo "  Publishing $SCOPE/$PKG@$VER..."
 
-              npm publish "$REPACKED_TGZ" --access public --provenance || {
-                echo "  WARNING: Failed to publish $SCOPE/$PKG@$VER"
-              }
-              rm -f "$REPACKED_TGZ"
-            done
+            # Repack tarball with repository.url pointing to this public repo
+            # (npm provenance requires it to match the publishing workflow's repo)
+            REPACK_DIR=$(mktemp -d)
+            tar xzf "$LATEST_TGZ" -C "$REPACK_DIR"
+            node -e "
+              const pkg = require('$REPACK_DIR/package/package.json');
+              pkg.repository = pkg.repository || {};
+              if (typeof pkg.repository === 'string') pkg.repository = { type: 'git', url: '$PUBLISH_REPO' };
+              else pkg.repository.url = 'git+$PUBLISH_REPO.git';
+              delete pkg.repository.directory;
+              delete pkg.publishConfig;
+              require('fs').writeFileSync('$REPACK_DIR/package/package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            REPACKED_TGZ=$(mktemp --suffix=.tgz)
+            tar czf "$REPACKED_TGZ" -C "$REPACK_DIR" package
+            rm -rf "$REPACK_DIR"
+
+            npm publish "$REPACKED_TGZ" --access public --provenance || {
+              echo "  WARNING: Failed to publish $SCOPE/$PKG@$VER"
+            }
+            rm -f "$REPACKED_TGZ"
           done
 
           echo ""
