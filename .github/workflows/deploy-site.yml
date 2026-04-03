@@ -298,9 +298,7 @@ jobs:
             tar czf "$REPACKED_TGZ" -C "$REPACK_DIR" package
             rm -rf "$REPACK_DIR"
 
-            npm publish "$REPACKED_TGZ" --access public --provenance || {
-              echo "  WARNING: Failed to publish $SCOPE/$PKG@$VER"
-            }
+            npm publish "$REPACKED_TGZ" --access public --provenance
             rm -f "$REPACKED_TGZ"
           done
 
