@@ -202,6 +202,14 @@ jobs:
           echo ""
           echo "npm registry build complete."
 
+      - name: Upload tarballs for npmjs publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarballs
+          path: packages/@canon-protocol/
+          retention-days: 1
+          if-no-files-found: warn
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
@@ -224,3 +232,58 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  # ── Publish to npmjs.com (provenance from public repo) ───
+  publish-npmjs:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-tarballs
+          path: tarballs
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@canon-protocol'
+
+      - name: Publish new versions to npmjs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          SCOPE="@canon-protocol"
+
+          for PKG_DIR in tarballs/*/; do
+            PKG=$(basename "$PKG_DIR")
+            echo "=== Checking $SCOPE/$PKG ==="
+
+            # Get the latest version already on npmjs (if any)
+            PUBLISHED=$(npm view "$SCOPE/$PKG" version 2>/dev/null || echo "")
+
+            # Find all tarballs for this package, sorted by version
+            for TGZ in "$PKG_DIR"*.tgz; do
+              [ -f "$TGZ" ] || continue
+              FILENAME=$(basename "$TGZ")
+              # Extract version from filename: cli-8.2.0.tgz -> 8.2.0
+              VER=$(echo "$FILENAME" | sed "s/^${PKG}-//; s/\.tgz$//")
+
+              if [ "$VER" = "$PUBLISHED" ]; then
+                echo "  $VER already published, skipping"
+                continue
+              fi
+
+              echo "  Publishing $SCOPE/$PKG@$VER..."
+              npm publish "$TGZ" --access public --provenance || {
+                echo "  WARNING: Failed to publish $SCOPE/$PKG@$VER"
+              }
+            done
+          done
+
+          echo ""
+          echo "npmjs publish complete."
