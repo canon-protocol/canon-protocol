@@ -253,6 +253,8 @@ jobs:
           scope: '@canon-protocol'
 
       - name: Publish latest versions to npmjs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         shell: bash
         run: |
           SCOPE="@canon-protocol"
