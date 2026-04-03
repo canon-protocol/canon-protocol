@@ -330,7 +330,7 @@ curl -o .agents/skills/canon/SKILL.md \
         </section>
 
         <section>
-            <h2>Canon CLI</h2>
+            <h2>Canon CLI <span id="cli-version" style="font-size:0.65em;font-weight:400;color:var(--text-secondary);background:var(--code-bg);padding:0.15rem 0.5rem;border-radius:9999px;vertical-align:middle;display:none;"></span></h2>
             <p>Install the CLI to validate, install packages, and inspect dependencies:</p>
             <pre><code>npm config set @canon-protocol:registry https://canon-protocol.org/npm
 npm install -g @canon-protocol/cli</code></pre>
@@ -362,6 +362,18 @@ canon deps contacts.can.yml</code></pre>
         </footer>
     </div>
     <script>
+        fetch('/npm/@canon-protocol/cli')
+            .then(function(r) { return r.json(); })
+            .then(function(pkg) {
+                var v = pkg['dist-tags'] && pkg['dist-tags'].latest;
+                if (v) {
+                    var el = document.getElementById('cli-version');
+                    el.textContent = 'v' + v;
+                    el.style.display = 'inline';
+                }
+            })
+            .catch(function() {});
+
         document.querySelectorAll('.tab-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
