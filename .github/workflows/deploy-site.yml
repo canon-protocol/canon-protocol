@@ -123,7 +123,18 @@ jobs:
 
             # Discover all versions from GitHub Packages npm registry
             VERSIONS=$(npm view "$SCOPE/$PKG" versions --json --registry=https://npm.pkg.github.com 2>/dev/null \
-              | node -e "const v=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); (Array.isArray(v)?v:[v]).forEach(x=>console.log(x))" 2>/dev/null || true)
+              | node -e "
+                const raw = require('fs').readFileSync('/dev/stdin','utf8').trim();
+                try {
+                  const v = JSON.parse(raw);
+                  if (typeof v === 'string') console.log(v);
+                  else if (Array.isArray(v)) v.forEach(x => console.log(x));
+                  else if (v && v.versions) Object.keys(v.versions).forEach(x => console.log(x));
+                } catch(e) {
+                  // Not JSON — might be a bare version string
+                  if (/^\d+\.\d+\.\d+$/.test(raw)) console.log(raw);
+                }
+              " 2>/dev/null || true)
 
             if [ -z "$VERSIONS" ]; then
               echo "  WARNING: No versions found for $SCOPE/$PKG, skipping"
