@@ -118,6 +118,14 @@ body {
   font-family: var(--font); font-size: 10px; cursor: pointer; transition: all 0.1s;
 }
 .layer-action-btn:hover { border-color: var(--accent); color: var(--text); }
+.missing-deps { padding: 8px 12px; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); background: rgba(251, 146, 60, 0.05); }
+.missing-deps-title { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #fb923c; margin-bottom: 4px; }
+.missing-dep-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 11px; }
+.missing-dep-name { font-family: var(--mono); color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.missing-dep-load { padding: 1px 6px; background: var(--accent); color: #0a0a0c; border: none; border-radius: 3px; font-size: 9px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.missing-dep-load:hover { opacity: 0.85; }
+.missing-dep-load-all { width: 100%; padding: 4px 8px; margin-top: 6px; background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; cursor: pointer; }
+.missing-dep-load-all:hover { border-color: var(--accent); color: var(--text); }
 
 /* ── Graph Area ──────────────── */
 .graph-area { flex: 1; position: relative; overflow: hidden; }
@@ -237,6 +245,7 @@ body {
         spellcheck="false">
     </div>
     <div class="layer-list" id="layerList"></div>
+    <div id="missingDeps" style="display:none;"></div>
     <div class="layer-actions">
       <button class="layer-action-btn" id="addFileBtn">+ File</button>
       <button class="layer-action-btn" id="addDirBtn">+ Directory</button>
@@ -521,6 +530,65 @@ async function switchLayerVersion(layerId, newVersion) {
   }
 }
 
+function renderMissingDeps() {
+  const container = document.getElementById('missingDeps');
+  const loadedPackages = new Set(layers.map(l => l.name));
+
+  // Collect all imports from all loaded layers
+  const missing = [];
+  for (const layer of layers) {
+    const imports = layer.document.metadata?.imports;
+    if (!imports) continue;
+    for (const [publisher, importList] of Object.entries(imports)) {
+      for (const imp of importList) {
+        const pkgName = `${publisher}/${imp.packageName}`;
+        if (!loadedPackages.has(pkgName) && !missing.some(m => m.name === pkgName)) {
+          const ver = imp.version;
+          missing.push({
+            name: pkgName,
+            version: `${ver.major}.${ver.minor}.${ver.patch}`,
+            publisher,
+            packageName: imp.packageName,
+          });
+        }
+      }
+    }
+  }
+
+  if (missing.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  let html = '<div class="missing-deps"><div class="missing-deps-title">Missing dependencies</div>';
+  for (const dep of missing) {
+    html += `<div class="missing-dep-item">
+      <span class="missing-dep-name" title="${esc(dep.name)}">${esc(dep.name)}</span>
+      <button class="missing-dep-load" data-dep-uri="${esc(dep.name)}">Load</button>
+    </div>`;
+  }
+  if (missing.length > 1) {
+    html += `<button class="missing-dep-load-all" id="loadAllDeps">Load all ${missing.length} dependencies</button>`;
+  }
+  html += '</div>';
+
+  container.innerHTML = html;
+  container.style.display = 'block';
+
+  // Bind load buttons
+  container.querySelectorAll('.missing-dep-load').forEach(btn => {
+    btn.addEventListener('click', () => loadRemoteLayer(btn.dataset.depUri));
+  });
+  const loadAllBtn = container.querySelector('#loadAllDeps');
+  if (loadAllBtn) {
+    loadAllBtn.addEventListener('click', async () => {
+      for (const dep of missing) {
+        await loadRemoteLayer(dep.name);
+      }
+    });
+  }
+}
+
 function flashLayer(id) {
   const el = document.querySelector(`[data-layer-id="${id}"]`);
   if (el) {
@@ -647,6 +715,7 @@ async function rebuildGraph() {
   const visible = layers.filter(l => l.visible);
   if (visible.length === 0) {
     clearGraph();
+    renderMissingDeps();
     return;
   }
 
@@ -670,6 +739,7 @@ async function rebuildGraph() {
   }
 
   renderGraph(graph);
+  renderMissingDeps();
 }
 
 // ── D3 Graph rendering ──────────────────────────
