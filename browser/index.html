@@ -132,6 +132,8 @@ body {
 .graph-area svg { width: 100%; height: 100%; display: block; }
 .graph-area svg text { font-family: var(--font); pointer-events: none; user-select: none; }
 .edge-label { font-size: 9px; fill: var(--text-dim); font-family: var(--mono); }
+.edge-label.clickable { cursor: pointer; pointer-events: all; fill: var(--accent); }
+.edge-label.clickable:hover { fill: #93c5fd; text-decoration: underline; }
 .node-label { font-size: 11px; fill: var(--text-secondary); font-weight: 500; }
 .node circle { cursor: pointer; stroke-width: 2; transition: opacity 0.2s; }
 .node circle:hover { filter: brightness(1.2); }
@@ -163,6 +165,8 @@ body {
 .connection-type { font-family: var(--mono); font-size: 9px; color: var(--text-dim); flex-shrink: 0; }
 .connection-name { color: var(--accent); }
 .connection-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.connection-prop-link { color: var(--accent); cursor: pointer; }
+.connection-prop-link:hover { text-decoration: underline; }
 
 /* ── Legend ───────────────────── */
 .legend { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 5px 12px; background: var(--bg-raised); border-top: 1px solid var(--border); flex-shrink: 0; }
@@ -791,7 +795,18 @@ function renderGraph(graphData) {
   const link = linkG.selectAll('line').data(d3Links).join('line')
     .attr('class', 'link').attr('marker-end', 'url(#arrowhead)');
   const edgeLabel = linkG.selectAll('text').data(d3Links).join('text')
-    .attr('class', 'edge-label').attr('text-anchor', 'middle').text(d => d.label);
+    .attr('class', d => d.propertyId ? 'edge-label clickable' : 'edge-label')
+    .attr('text-anchor', 'middle')
+    .text(d => d.label);
+
+  // Click edge label to inspect the property entity
+  edgeLabel.filter(d => d.propertyId).on('click', (e, d) => {
+    e.stopPropagation();
+    const propNode = d3Nodes.find(n => n.id === d.propertyId);
+    if (propNode) {
+      selectNode(propNode, d3Nodes, d3Links, node, link, edgeLabel);
+    }
+  });
 
   const nodeG = g.append('g');
   const node = nodeG.selectAll('g').data(d3Nodes).join('g').attr('class', 'node')
@@ -844,8 +859,8 @@ function selectNode(d, d3Nodes, d3Links, nodeS, linkS, edgeLabelS) {
   const connIds = new Set([d.id]);
   const conns = [];
   for (const l of d3Links) {
-    if (l.source.id === d.id) { connIds.add(l.target.id); conns.push({ type: l.label, name: l.target.label, id: l.target.id, nodeType: l.target.type, dir: 'out' }); }
-    if (l.target.id === d.id) { connIds.add(l.source.id); conns.push({ type: l.label, name: l.source.label, id: l.source.id, nodeType: l.source.type, dir: 'in' }); }
+    if (l.source.id === d.id) { connIds.add(l.target.id); conns.push({ type: l.label, name: l.target.label, id: l.target.id, nodeType: l.target.type, dir: 'out', propertyId: l.propertyId }); }
+    if (l.target.id === d.id) { connIds.add(l.source.id); conns.push({ type: l.label, name: l.source.label, id: l.source.id, nodeType: l.source.type, dir: 'in', propertyId: l.propertyId }); }
   }
   nodeS.classed('dimmed', n => !connIds.has(n.id));
   linkS.classed('dimmed', l => l.source.id !== d.id && l.target.id !== d.id);
@@ -889,9 +904,12 @@ function showDetail(d, connections) {
     html += `<div class="detail-section"><div class="detail-section-title">Connections</div>`;
     for (const c of connections) {
       const dir = c.dir === 'out' ? '&rarr;' : '&larr;';
+      const propLink = c.propertyId
+        ? `<span class="connection-prop-link" data-prop-id="${esc(c.propertyId)}" title="Inspect property">${esc(c.type)}</span>`
+        : esc(c.type);
       html += `<div class="connection-item" data-node-id="${esc(c.id)}">
         <div class="connection-dot" style="background:${nodeColor(c.nodeType)}"></div>
-        <span class="connection-type">${dir} ${esc(c.type)}</span>
+        <span class="connection-type">${dir} ${propLink}</span>
         <span class="connection-name">${esc(c.name)}</span>
       </div>`;
     }
@@ -899,12 +917,26 @@ function showDetail(d, connections) {
   }
 
   detailContent.innerHTML = html;
+
+  // Click connection item → navigate to connected node
   detailContent.querySelectorAll('.connection-item').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.connection-prop-link')) return; // handled below
       const s = window._graphState;
       if (!s) return;
       const t = s.d3Nodes.find(n => n.id === el.dataset.nodeId);
       if (t) selectNode(t, s.d3Nodes, s.d3Links, s.node, s.link, s.edgeLabel);
+    });
+  });
+
+  // Click property link → navigate to the ObjectProperty node
+  detailContent.querySelectorAll('.connection-prop-link').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const s = window._graphState;
+      if (!s) return;
+      const propNode = s.d3Nodes.find(n => n.id === el.dataset.propId);
+      if (propNode) selectNode(propNode, s.d3Nodes, s.d3Links, s.node, s.link, s.edgeLabel);
     });
   });
 }
