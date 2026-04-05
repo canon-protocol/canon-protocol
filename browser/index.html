@@ -169,6 +169,12 @@ body {
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 .modal-btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: 4px; font-family: var(--font); font-size: 12px; cursor: pointer; background: var(--bg-surface); color: var(--text-secondary); }
 .modal-btn.primary { background: var(--accent); color: #0a0a0c; border-color: var(--accent); font-weight: 600; }
+.pub-pkg-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border-subtle); font-size: 12px; cursor: pointer; transition: background 0.1s; }
+.pub-pkg-item:hover { background: var(--bg-surface); }
+.pub-pkg-item:last-child { border-bottom: none; }
+.pub-pkg-item input[type="checkbox"] { accent-color: var(--accent); }
+.pub-pkg-name { font-family: var(--mono); color: var(--text-secondary); }
+.pub-pkg-version { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-left: auto; }
 
 /* ── Responsive ──────────────── */
 @media (max-width: 900px) {
@@ -258,6 +264,23 @@ body {
     <div class="modal-actions">
       <button class="modal-btn" id="pasteCancelBtn">Cancel</button>
       <button class="modal-btn primary" id="pasteLoadBtn">Load</button>
+    </div>
+  </div>
+</div>
+
+<!-- Publisher Picker Modal -->
+<div class="modal-overlay" id="publisherModal">
+  <div class="modal" style="width:420px;">
+    <h3 id="publisherModalTitle">Packages on publisher</h3>
+    <div style="margin-bottom:8px;font-size:11px;color:var(--text-dim);">Select packages to add as layers:</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button class="modal-btn" id="pubSelectAll" style="font-size:10px;padding:3px 8px;">Select all</button>
+      <button class="modal-btn" id="pubSelectNone" style="font-size:10px;padding:3px 8px;">Select none</button>
+    </div>
+    <div id="publisherPackageList" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;background:var(--bg);"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" id="pubCancelBtn">Cancel</button>
+      <button class="modal-btn primary" id="pubLoadBtn">Load selected</button>
     </div>
   </div>
 </div>
@@ -638,7 +661,14 @@ function loadFromHash() {
 // ── Load remote package ─────────────────────────
 async function loadRemoteLayer(uri) {
   uri = uri.trim().replace(/^canon:\/\//, '');
-  if (!uri || !uri.includes('/')) return;
+  if (!uri) return;
+
+  // If no slash, treat as a publisher domain → show package picker
+  if (!uri.includes('/')) {
+    await loadPublisher(uri);
+    return;
+  }
+
   if (layers.find(l => l.name === uri)) { flashLayer(layers.find(l => l.name === uri).id); return; }
 
   showLoading(`Loading ${uri}...`);
@@ -652,6 +682,101 @@ async function loadRemoteLayer(uri) {
     hideLoading();
     showError(err.message);
   }
+}
+
+// ── Load publisher (show package picker) ────────
+async function loadPublisher(publisher) {
+  publisher = publisher.trim();
+  showLoading(`Discovering packages on ${publisher}...`);
+  hideError();
+
+  try {
+    const indexRes = await fetch(`https://${publisher}/index.txt`);
+    if (!indexRes.ok) throw new Error(`Failed to fetch index from ${publisher} (HTTP ${indexRes.status})`);
+    const indexText = await indexRes.text();
+
+    // Parse index into packages with their latest version
+    const packageVersions = new Map();
+    for (const line of indexText.split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const s = t.indexOf('/');
+      if (s === -1) continue;
+      const pkg = t.substring(0, s);
+      const ver = t.substring(s + 1);
+      if (!packageVersions.has(pkg)) packageVersions.set(pkg, []);
+      packageVersions.get(pkg).push(ver);
+    }
+
+    if (packageVersions.size === 0) throw new Error(`No packages found on ${publisher}`);
+
+    // Sort each package's versions, keep highest
+    const packages = [];
+    for (const [pkg, versions] of packageVersions) {
+      versions.sort((a, b) => {
+        const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+        return (pb[0]-pa[0]) || (pb[1]-pa[1]) || (pb[2]-pa[2]);
+      });
+      const already = layers.some(l => l.name === `${publisher}/${pkg}`);
+      packages.push({ name: pkg, version: versions[0], already });
+    }
+    packages.sort((a, b) => a.name.localeCompare(b.name));
+
+    hideLoading();
+    showPublisherPicker(publisher, packages);
+  } catch (err) {
+    hideLoading();
+    showError(err.message);
+  }
+}
+
+function showPublisherPicker(publisher, packages) {
+  const modal = document.getElementById('publisherModal');
+  const title = document.getElementById('publisherModalTitle');
+  const list = document.getElementById('publisherPackageList');
+
+  title.textContent = `Packages on ${publisher}`;
+
+  let html = '';
+  for (const pkg of packages) {
+    const checked = !pkg.already ? 'checked' : '';
+    const dimStyle = pkg.already ? 'opacity:0.5;' : '';
+    html += `<label class="pub-pkg-item" style="${dimStyle}">
+      <input type="checkbox" ${checked} data-pkg="${esc(pkg.name)}" ${pkg.already ? 'disabled' : ''}>
+      <span class="pub-pkg-name">${esc(pkg.name)}</span>
+      ${pkg.already ? '<span style="font-size:9px;color:var(--text-dim);">loaded</span>' : ''}
+      <span class="pub-pkg-version">${esc(pkg.version)}</span>
+    </label>`;
+  }
+  list.innerHTML = html;
+
+  // Select all / none buttons
+  document.getElementById('pubSelectAll').onclick = () => {
+    list.querySelectorAll('input[type="checkbox"]:not(:disabled)').forEach(cb => cb.checked = true);
+  };
+  document.getElementById('pubSelectNone').onclick = () => {
+    list.querySelectorAll('input[type="checkbox"]:not(:disabled)').forEach(cb => cb.checked = false);
+  };
+
+  // Cancel
+  document.getElementById('pubCancelBtn').onclick = () => modal.classList.remove('active');
+
+  // Load selected
+  document.getElementById('pubLoadBtn').onclick = async () => {
+    const selected = [];
+    list.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)').forEach(cb => {
+      selected.push(cb.dataset.pkg);
+    });
+    modal.classList.remove('active');
+
+    if (selected.length === 0) return;
+
+    for (const pkg of selected) {
+      await loadRemoteLayer(`${publisher}/${pkg}`);
+    }
+  };
+
+  modal.classList.add('active');
 }
 
 // ── Load local files ────────────────────────────
