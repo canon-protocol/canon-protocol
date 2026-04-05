@@ -303,11 +303,12 @@ body {
 
 <script type="module">
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
-import { CanonParser, GraphBuilder, InMemoryCanonDocumentRepository }
+import { CanonParser, GraphBuilder, InMemoryCanonDocumentRepository, PublisherConfigResolver }
   from 'https://esm.sh/@canon-protocol/sdk@8.7.1/browser';
 
 // ── State ───────────────────────────────────────
 const parser = new CanonParser();
+const configResolver = new PublisherConfigResolver();
 const LAYER_COLORS = ['#60a5fa','#34d399','#fb923c','#c084fc','#f472b6','#f59e0b','#14b8a6','#e879f9','#38bdf8','#a3e635'];
 let layers = [];  // { id, name, source, visible, document, color, entityCount, availableVersions?, currentVersion? }
 let simulation = null;
@@ -351,8 +352,12 @@ function sortVersionsDesc(versions) {
 async function getPublisherIndex(publisher) {
   if (publisherIndexCache.has(publisher)) return publisherIndexCache.get(publisher);
 
-  const res = await fetch(`https://${publisher}/index.txt`);
-  if (!res.ok) throw new Error(`Failed to fetch index from ${publisher} (HTTP ${res.status})`);
+  // Use SDK's PublisherConfigResolver for proper discovery via .well-known/canon.json
+  const config = await configResolver.getConfig(publisher);
+  const indexUrl = configResolver.resolveIndexUrl(publisher, config);
+
+  const res = await fetch(indexUrl);
+  if (!res.ok) throw new Error(`Failed to fetch index from ${publisher} (HTTP ${res.status})\n  URL: ${indexUrl}`);
   const text = await res.text();
 
   const index = new Map();
@@ -388,8 +393,10 @@ async function fetchPackageYaml(uri) {
 
   const version = versions[0]; // highest (already sorted desc)
 
-  const pkgRes = await fetch(`https://${publisher}/${packageName}/${version}.can.yml`);
-  if (!pkgRes.ok) throw new Error(`Failed to fetch ${packageName}@${version}`);
+  const config = await configResolver.getConfig(publisher);
+  const pkgUrl = configResolver.resolvePackageUrl(publisher, packageName, version, config);
+  const pkgRes = await fetch(pkgUrl);
+  if (!pkgRes.ok) throw new Error(`Failed to fetch ${packageName}@${version}\n  URL: ${pkgUrl}`);
   return { yaml: await pkgRes.text(), name: `${publisher}/${packageName}`, version, allVersions: versions };
 }
 
@@ -461,9 +468,10 @@ async function switchLayerVersion(layerId, newVersion) {
 
   showLoading(`Switching ${layer.name} to v${newVersion}...`);
   try {
-    const pkgUrl = `https://${publisher}/${packageName}/${newVersion}.can.yml`;
+    const config = await configResolver.getConfig(publisher);
+    const pkgUrl = configResolver.resolvePackageUrl(publisher, packageName, newVersion, config);
     const res = await fetch(pkgUrl);
-    if (!res.ok) throw new Error(`Failed to fetch ${layer.name}@${newVersion} (HTTP ${res.status})`);
+    if (!res.ok) throw new Error(`Failed to fetch ${layer.name}@${newVersion} (HTTP ${res.status})\n  URL: ${pkgUrl}`);
     const yaml = await res.text();
     const doc = parser.parse(yaml);
 
@@ -824,32 +832,14 @@ async function loadPublisher(publisher) {
   hideError();
 
   try {
-    const indexRes = await fetch(`https://${publisher}/index.txt`);
-    if (!indexRes.ok) throw new Error(`Failed to fetch index from ${publisher} (HTTP ${indexRes.status})`);
-    const indexText = await indexRes.text();
+    // Use cached publisher index (already uses SDK's PublisherConfigResolver for discovery)
+    const index = await getPublisherIndex(publisher);
 
-    // Parse index into packages with their latest version
-    const packageVersions = new Map();
-    for (const line of indexText.split('\n')) {
-      const t = line.trim();
-      if (!t || t.startsWith('#')) continue;
-      const s = t.indexOf('/');
-      if (s === -1) continue;
-      const pkg = t.substring(0, s);
-      const ver = t.substring(s + 1);
-      if (!packageVersions.has(pkg)) packageVersions.set(pkg, []);
-      packageVersions.get(pkg).push(ver);
-    }
+    if (index.size === 0) throw new Error(`No packages found on ${publisher}`);
 
-    if (packageVersions.size === 0) throw new Error(`No packages found on ${publisher}`);
-
-    // Sort versions descending per package, group into one entry per package
+    // Build package list (versions already sorted desc by getPublisherIndex)
     const packages = [];
-    for (const [pkg, versions] of packageVersions) {
-      versions.sort((a, b) => {
-        const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
-        return (pb[0]-pa[0]) || (pb[1]-pa[1]) || (pb[2]-pa[2]);
-      });
+    for (const [pkg, versions] of index) {
       const already = layers.some(l => l.name === `${publisher}/${pkg}`);
       packages.push({ name: pkg, versions, latest: versions[0], already });
     }
@@ -948,9 +938,10 @@ async function loadRemoteLayerWithVersion(publisher, packageName, version) {
       return;
     }
 
-    const pkgUrl = `https://${publisher}/${packageName}/${version}.can.yml`;
+    const config = await configResolver.getConfig(publisher);
+    const pkgUrl = configResolver.resolvePackageUrl(publisher, packageName, version, config);
     const res = await fetch(pkgUrl);
-    if (!res.ok) throw new Error(`Failed to fetch ${layerName}@${version} (HTTP ${res.status})`);
+    if (!res.ok) throw new Error(`Failed to fetch ${layerName}@${version} (HTTP ${res.status})\n  URL: ${pkgUrl}`);
     const yaml = await res.text();
     const doc = parser.parse(yaml);
     addLayer(layerName, 'remote', doc, { availableVersions: allVersions, currentVersion: version });
