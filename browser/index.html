@@ -309,10 +309,11 @@ import { CanonParser, GraphBuilder, InMemoryCanonDocumentRepository }
 // ── State ───────────────────────────────────────
 const parser = new CanonParser();
 const LAYER_COLORS = ['#60a5fa','#34d399','#fb923c','#c084fc','#f472b6','#f59e0b','#14b8a6','#e879f9','#38bdf8','#a3e635'];
-let layers = [];  // { id, name, source:'remote'|'local'|'paste', visible:true, document, color, entityCount }
+let layers = [];  // { id, name, source, visible, document, color, entityCount, availableVersions?, currentVersion? }
 let simulation = null;
 let selectedNode = null;
 let colorIndex = 0;
+const publisherIndexCache = new Map(); // publisher → Map<packageName, version[]>
 
 const TYPE_COLORS = {
   Class:'#60a5fa', ObjectProperty:'#34d399', DatatypeProperty:'#fb923c',
@@ -339,6 +340,41 @@ const fileInput = document.getElementById('fileInput');
 const pasteModal = document.getElementById('pasteModal');
 const pasteArea = document.getElementById('pasteArea');
 
+// ── Publisher index (cached) ────────────────────
+function sortVersionsDesc(versions) {
+  return [...versions].sort((a, b) => {
+    const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+    return (pb[0]-pa[0]) || (pb[1]-pa[1]) || (pb[2]-pa[2]);
+  });
+}
+
+async function getPublisherIndex(publisher) {
+  if (publisherIndexCache.has(publisher)) return publisherIndexCache.get(publisher);
+
+  const res = await fetch(`https://${publisher}/index.txt`);
+  if (!res.ok) throw new Error(`Failed to fetch index from ${publisher} (HTTP ${res.status})`);
+  const text = await res.text();
+
+  const index = new Map();
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) continue;
+    const s = t.indexOf('/');
+    if (s === -1) continue;
+    const pkg = t.substring(0, s);
+    const ver = t.substring(s + 1);
+    if (!index.has(pkg)) index.set(pkg, []);
+    index.get(pkg).push(ver);
+  }
+  // Sort versions descending for each package
+  for (const [pkg, versions] of index) {
+    index.set(pkg, sortVersionsDesc(versions));
+  }
+
+  publisherIndexCache.set(publisher, index);
+  return index;
+}
+
 // ── Package fetching ────────────────────────────
 async function fetchPackageYaml(uri) {
   const slash = uri.indexOf('/');
@@ -346,39 +382,25 @@ async function fetchPackageYaml(uri) {
   const publisher = uri.substring(0, slash);
   const packageName = uri.substring(slash + 1);
 
-  const indexRes = await fetch(`https://${publisher}/index.txt`);
-  if (!indexRes.ok) throw new Error(`Failed to fetch index from ${publisher} (HTTP ${indexRes.status})`);
-  const indexText = await indexRes.text();
+  const index = await getPublisherIndex(publisher);
+  const versions = index.get(packageName);
+  if (!versions || versions.length === 0) throw new Error(`Package "${packageName}" not found on ${publisher}`);
 
-  const versions = [];
-  for (const line of indexText.split('\n')) {
-    const t = line.trim();
-    if (!t || t.startsWith('#')) continue;
-    const s = t.indexOf('/');
-    if (s === -1) continue;
-    if (t.substring(0, s) === packageName) versions.push(t.substring(s + 1));
-  }
-  if (versions.length === 0) throw new Error(`Package "${packageName}" not found on ${publisher}`);
-
-  const version = versions.sort((a, b) => {
-    const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
-    return (pb[0]-pa[0]) || (pb[1]-pa[1]) || (pb[2]-pa[2]);
-  })[0];
+  const version = versions[0]; // highest (already sorted desc)
 
   const pkgRes = await fetch(`https://${publisher}/${packageName}/${version}.can.yml`);
   if (!pkgRes.ok) throw new Error(`Failed to fetch ${packageName}@${version}`);
-  return { yaml: await pkgRes.text(), name: `${publisher}/${packageName}`, version };
+  return { yaml: await pkgRes.text(), name: `${publisher}/${packageName}`, version, allVersions: versions };
 }
 
 // ── Layer management ────────────────────────────
-function addLayer(name, source, document, yaml) {
+function addLayer(name, source, document, options = {}) {
   const existing = layers.find(l => l.name === name);
   if (existing) {
     flashLayer(existing.id);
     return;
   }
 
-  const ns = document.metadata?.namespace_;
   let entityCount = 0;
   for (const [, val] of Object.entries(document.body)) {
     if (val && typeof val === 'object' && val.type !== 'Package') entityCount++;
@@ -392,6 +414,8 @@ function addLayer(name, source, document, yaml) {
     document,
     color: nextLayerColor(),
     entityCount,
+    availableVersions: options.availableVersions || null,
+    currentVersion: options.currentVersion || null,
   };
   layers.push(layer);
   renderLayers();
@@ -426,6 +450,38 @@ function togglePublisher(publisher) {
 function getPublisher(name) {
   const slash = name.indexOf('/');
   return slash !== -1 ? name.substring(0, slash) : name;
+}
+
+async function switchLayerVersion(layerId, newVersion) {
+  const layer = layers.find(l => l.id === layerId);
+  if (!layer || layer.source !== 'remote' || layer.currentVersion === newVersion) return;
+
+  const publisher = getPublisher(layer.name);
+  const packageName = layer.name.substring(publisher.length + 1);
+
+  showLoading(`Switching ${layer.name} to v${newVersion}...`);
+  try {
+    const pkgUrl = `https://${publisher}/${packageName}/${newVersion}.can.yml`;
+    const res = await fetch(pkgUrl);
+    if (!res.ok) throw new Error(`Failed to fetch ${layer.name}@${newVersion} (HTTP ${res.status})`);
+    const yaml = await res.text();
+    const doc = parser.parse(yaml);
+
+    layer.document = doc;
+    layer.currentVersion = newVersion;
+    let entityCount = 0;
+    for (const [, val] of Object.entries(doc.body)) {
+      if (val && typeof val === 'object' && val.type !== 'Package') entityCount++;
+    }
+    layer.entityCount = entityCount;
+
+    hideLoading();
+    renderLayers();
+    rebuildGraph();
+  } catch (err) {
+    hideLoading();
+    showError(err.message);
+  }
 }
 
 function flashLayer(id) {
@@ -468,7 +524,8 @@ function renderLayers() {
         <span class="layer-group-name" title="${esc(pub)}">${esc(pub)}</span>
         <span class="layer-group-count">${entityCount}</span>
       </div>`;
-    for (const l of pubLayers) {
+    const sorted = [...pubLayers].sort((a, b) => a.name.localeCompare(b.name));
+    for (const l of sorted) {
       html += layerItemHtml(l);
     }
     html += '</div>';
@@ -489,16 +546,31 @@ function renderLayers() {
   layerList.querySelectorAll('.layer-remove').forEach(el => {
     el.addEventListener('click', (e) => { e.stopPropagation(); removeLayer(el.dataset.layerRemove); });
   });
+  // Bind version switch events
+  layerList.querySelectorAll('.layer-version-select').forEach(el => {
+    el.addEventListener('change', (e) => { e.stopPropagation(); switchLayerVersion(el.dataset.layerVersion, el.value); });
+    el.addEventListener('click', (e) => e.stopPropagation()); // prevent toggle on click
+  });
 }
 
 function layerItemHtml(l) {
-  // Show just the package name (strip publisher since it's in the group header)
   const shortName = l.name.includes('/') ? l.name.substring(l.name.indexOf('/') + 1) : l.name;
+
+  let versionHtml = '';
+  if (l.availableVersions && l.availableVersions.length > 1) {
+    versionHtml = `<select class="layer-version-select" data-layer-version="${l.id}"
+      style="background:var(--bg);color:var(--text-dim);border:1px solid var(--border);border-radius:3px;font-family:var(--mono);font-size:9px;padding:1px 2px;max-width:58px;">
+      ${l.availableVersions.map(v => `<option value="${esc(v)}"${v === l.currentVersion ? ' selected' : ''}>${esc(v)}</option>`).join('')}
+    </select>`;
+  } else if (l.currentVersion) {
+    versionHtml = `<span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);">${esc(l.currentVersion)}</span>`;
+  }
+
   return `<div class="layer-item" data-layer-id="${l.id}">
     <div class="layer-check ${l.visible ? 'checked' : ''}" data-layer-toggle="${l.id}">${l.visible ? '&#10003;' : ''}</div>
     <div class="layer-color" style="background:${l.color}"></div>
     <div class="layer-name" title="${esc(l.name)}">${esc(shortName)}</div>
-    <div class="layer-count">${l.entityCount}</div>
+    ${versionHtml}
     <div class="layer-remove" data-layer-remove="${l.id}" title="Remove layer">&times;</div>
   </div>`;
 }
@@ -703,7 +775,14 @@ function showDetail(d, connections) {
 // ── URL hash ────────────────────────────────────
 function updateHash() {
   const remote = layers.filter(l => l.source === 'remote').map(l => l.name);
-  window.location.hash = remote.join(',');
+  if (remote.length <= 5) {
+    // Short list — show explicit package URIs
+    window.location.hash = remote.join(',');
+  } else {
+    // Too many — collapse to unique publisher domains
+    const publishers = [...new Set(remote.map(getPublisher))];
+    window.location.hash = publishers.join(',');
+  }
 }
 
 function loadFromHash() {
@@ -728,9 +807,9 @@ async function loadRemoteLayer(uri) {
   showLoading(`Loading ${uri}...`);
   hideError();
   try {
-    const { yaml, name } = await fetchPackageYaml(uri);
+    const { yaml, name, version, allVersions } = await fetchPackageYaml(uri);
     const doc = parser.parse(yaml);
-    addLayer(name, 'remote', doc);
+    addLayer(name, 'remote', doc, { availableVersions: allVersions, currentVersion: version });
     hideLoading();
   } catch (err) {
     hideLoading();
@@ -857,11 +936,14 @@ async function loadRemoteLayerWithVersion(publisher, packageName, version) {
   showLoading(`Loading ${layerName}@${version}...`);
   hideError();
   try {
+    const index = await getPublisherIndex(publisher);
+    const allVersions = index.get(packageName) || [];
+
     // If no version specified, resolve latest via index
     if (!version) {
-      const { yaml, name } = await fetchPackageYaml(`${publisher}/${packageName}`);
+      const { yaml, name, version: resolved, allVersions: av } = await fetchPackageYaml(`${publisher}/${packageName}`);
       const doc = parser.parse(yaml);
-      addLayer(name, 'remote', doc);
+      addLayer(name, 'remote', doc, { availableVersions: av, currentVersion: resolved });
       hideLoading();
       return;
     }
@@ -871,7 +953,7 @@ async function loadRemoteLayerWithVersion(publisher, packageName, version) {
     if (!res.ok) throw new Error(`Failed to fetch ${layerName}@${version} (HTTP ${res.status})`);
     const yaml = await res.text();
     const doc = parser.parse(yaml);
-    addLayer(layerName, 'remote', doc);
+    addLayer(layerName, 'remote', doc, { availableVersions: allVersions, currentVersion: version });
     hideLoading();
   } catch (err) {
     hideLoading();
