@@ -331,6 +331,7 @@ let selectedNode = null;
 let colorIndex = 0;
 const publisherIndexCache = new Map(); // publisher → Map<packageName, version[]>
 const collapsedPublishers = new Set(); // publishers with collapsed layer lists
+const localDocCache = new Map(); // name → Map<version, CanonDocument> for local version switching
 let colorMode = 'type'; // 'type' or 'package'
 
 const TYPE_COLORS = {
@@ -481,19 +482,27 @@ function getPublisher(name) {
 
 async function switchLayerVersion(layerId, newVersion) {
   const layer = layers.find(l => l.id === layerId);
-  if (!layer || layer.source !== 'remote' || layer.currentVersion === newVersion) return;
-
-  const publisher = getPublisher(layer.name);
-  const packageName = layer.name.substring(publisher.length + 1);
+  if (!layer || layer.currentVersion === newVersion) return;
 
   showLoading(`Switching ${layer.name} to v${newVersion}...`);
   try {
-    const config = await configResolver.getConfig(publisher);
-    const pkgUrl = configResolver.resolvePackageUrl(publisher, packageName, newVersion, config);
-    const res = await fetch(pkgUrl);
-    if (!res.ok) throw new Error(`Failed to fetch ${layer.name}@${newVersion} (HTTP ${res.status})\n  URL: ${pkgUrl}`);
-    const yaml = await res.text();
-    const doc = parser.parse(yaml);
+    let doc;
+
+    // Check local cache first (for directory/file-loaded layers)
+    const cached = localDocCache.get(layer.name)?.get(newVersion);
+    if (cached) {
+      doc = cached;
+    } else {
+      // Fetch from remote
+      const publisher = getPublisher(layer.name);
+      const packageName = layer.name.substring(publisher.length + 1);
+      const config = await configResolver.getConfig(publisher);
+      const pkgUrl = configResolver.resolvePackageUrl(publisher, packageName, newVersion, config);
+      const res = await fetch(pkgUrl);
+      if (!res.ok) throw new Error(`Failed to fetch ${layer.name}@${newVersion} (HTTP ${res.status})\n  URL: ${pkgUrl}`);
+      const yaml = await res.text();
+      doc = parser.parse(yaml);
+    }
 
     layer.document = doc;
     layer.currentVersion = newVersion;
@@ -1003,6 +1012,9 @@ async function loadRemoteLayerWithVersion(publisher, packageName, version) {
 
 // ── Load local files ────────────────────────────
 async function loadLocalFiles(files) {
+  // Parse all files and group by package name
+  const packageMap = new Map(); // name → { versions: Map<version, doc>, latest }
+
   for (const file of files) {
     if (!file.name.endsWith('.can.yml') && !file.name.endsWith('.yml') && !file.name.endsWith('.yaml')) continue;
     try {
@@ -1010,9 +1022,31 @@ async function loadLocalFiles(files) {
       const doc = parser.parse(yaml);
       const ns = doc.metadata?.namespace_;
       const name = ns ? `${ns.publisher}/${ns.package_}` : file.name.replace(/\.can\.yml$|\.ya?ml$/, '');
-      addLayer(name, 'local', doc);
+      const version = ns?.version ? `${ns.version.major}.${ns.version.minor}.${ns.version.patch}` : '0.0.0';
+
+      if (!packageMap.has(name)) packageMap.set(name, { versions: new Map() });
+      packageMap.get(name).versions.set(version, doc);
     } catch (err) {
       console.error(`Failed to parse ${file.name}:`, err.message);
+    }
+  }
+
+  // Add one layer per package with version info
+  for (const [name, pkg] of packageMap) {
+    const allVersions = sortVersionsDesc([...pkg.versions.keys()]);
+    const latestVersion = allVersions[0];
+    const doc = pkg.versions.get(latestVersion);
+
+    // Store all parsed docs so version switching doesn't need HTTP
+    const layer = addLayer(name, 'local', doc, {
+      availableVersions: allVersions,
+      currentVersion: latestVersion,
+    });
+
+    // Cache local docs for version switching
+    if (!localDocCache.has(name)) localDocCache.set(name, new Map());
+    for (const [ver, d] of pkg.versions) {
+      localDocCache.get(name).set(ver, d);
     }
   }
 }
@@ -1023,7 +1057,8 @@ function loadFromPaste(yaml) {
     const doc = parser.parse(yaml);
     const ns = doc.metadata?.namespace_;
     const name = ns ? `${ns.publisher}/${ns.package_}` : `Pasted ${new Date().toLocaleTimeString()}`;
-    addLayer(name, 'paste', doc);
+    const version = ns?.version ? `${ns.version.major}.${ns.version.minor}.${ns.version.patch}` : null;
+    addLayer(name, 'paste', doc, { currentVersion: version });
   } catch (err) {
     showError(`YAML parse error: ${err.message}`);
   }
