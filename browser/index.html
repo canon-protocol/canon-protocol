@@ -1022,14 +1022,14 @@ async function loadLocalFiles(files) {
       const doc = parser.parse(yaml);
       const ns = doc.metadata?.namespace_;
 
-      if (!ns || !ns.publisher || !ns.package_) {
-        console.warn(`Skipping ${file.name}: no Canon Package declaration found. Every .can.yml file must declare a Package with publisher and version.`);
+      if (!ns || !ns.publisher || !ns.package_ || !ns.version) {
+        console.warn(`Skipping ${file.name}: missing Canon Package metadata (publisher, package, or version).`);
         continue;
       }
 
       // Identity comes exclusively from the SDK's parsed Package metadata
       const name = `${ns.publisher}/${ns.package_}`;
-      const version = ns.version ? `${ns.version.major}.${ns.version.minor}.${ns.version.patch}` : '0.0.0';
+      const version = `${ns.version.major}.${ns.version.minor}.${ns.version.patch}`;
 
       if (!packageMap.has(name)) packageMap.set(name, { versions: new Map() });
       packageMap.get(name).versions.set(version, doc);
@@ -1063,8 +1063,12 @@ function loadFromPaste(yaml) {
   try {
     const doc = parser.parse(yaml);
     const ns = doc.metadata?.namespace_;
-    const name = ns ? `${ns.publisher}/${ns.package_}` : `Pasted ${new Date().toLocaleTimeString()}`;
-    const version = ns?.version ? `${ns.version.major}.${ns.version.minor}.${ns.version.patch}` : null;
+    if (!ns || !ns.publisher || !ns.package_ || !ns.version) {
+      showError('Pasted content is missing Canon Package metadata (publisher, package, or version).');
+      return;
+    }
+    const name = `${ns.publisher}/${ns.package_}`;
+    const version = `${ns.version.major}.${ns.version.minor}.${ns.version.patch}`;
     addLayer(name, 'paste', doc, { currentVersion: version });
   } catch (err) {
     showError(`YAML parse error: ${err.message}`);
