@@ -613,7 +613,7 @@ function renderGraph(graphData) {
     const source = nodeMap.get(e.source);
     const target = nodeMap.get(e.target);
     if (source && target) {
-      d3Links.push({ source, target, ...e });
+      d3Links.push({ ...e, source, target });
     }
   }
 
