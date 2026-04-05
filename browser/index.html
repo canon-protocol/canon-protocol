@@ -1012,8 +1012,8 @@ async function loadRemoteLayerWithVersion(publisher, packageName, version) {
 
 // ── Load local files ────────────────────────────
 async function loadLocalFiles(files) {
-  // Parse all files and group by package name
-  const packageMap = new Map(); // name → { versions: Map<version, doc>, latest }
+  // Parse all files using the Canon SDK and group by package identity from metadata
+  const packageMap = new Map(); // name → { versions: Map<version, doc> }
 
   for (const file of files) {
     if (!file.name.endsWith('.can.yml') && !file.name.endsWith('.yml') && !file.name.endsWith('.yaml')) continue;
@@ -1021,8 +1021,15 @@ async function loadLocalFiles(files) {
       const yaml = await file.text();
       const doc = parser.parse(yaml);
       const ns = doc.metadata?.namespace_;
-      const name = ns ? `${ns.publisher}/${ns.package_}` : file.name.replace(/\.can\.yml$|\.ya?ml$/, '');
-      const version = ns?.version ? `${ns.version.major}.${ns.version.minor}.${ns.version.patch}` : '0.0.0';
+
+      if (!ns || !ns.publisher || !ns.package_) {
+        console.warn(`Skipping ${file.name}: no Canon Package declaration found. Every .can.yml file must declare a Package with publisher and version.`);
+        continue;
+      }
+
+      // Identity comes exclusively from the SDK's parsed Package metadata
+      const name = `${ns.publisher}/${ns.package_}`;
+      const version = ns.version ? `${ns.version.major}.${ns.version.minor}.${ns.version.patch}` : '0.0.0';
 
       if (!packageMap.has(name)) packageMap.set(name, { versions: new Map() });
       packageMap.get(name).versions.set(version, doc);
