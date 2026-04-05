@@ -710,7 +710,7 @@ async function loadPublisher(publisher) {
 
     if (packageVersions.size === 0) throw new Error(`No packages found on ${publisher}`);
 
-    // Sort each package's versions, keep highest
+    // Sort versions descending per package, group into one entry per package
     const packages = [];
     for (const [pkg, versions] of packageVersions) {
       versions.sort((a, b) => {
@@ -718,7 +718,7 @@ async function loadPublisher(publisher) {
         return (pb[0]-pa[0]) || (pb[1]-pa[1]) || (pb[2]-pa[2]);
       });
       const already = layers.some(l => l.name === `${publisher}/${pkg}`);
-      packages.push({ name: pkg, version: versions[0], already });
+      packages.push({ name: pkg, versions, latest: versions[0], already });
     }
     packages.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -735,20 +735,32 @@ function showPublisherPicker(publisher, packages) {
   const title = document.getElementById('publisherModalTitle');
   const list = document.getElementById('publisherPackageList');
 
-  title.textContent = `Packages on ${publisher}`;
+  title.textContent = `Packages on ${publisher} (${packages.length})`;
 
   let html = '';
   for (const pkg of packages) {
     const checked = !pkg.already ? 'checked' : '';
     const dimStyle = pkg.already ? 'opacity:0.5;' : '';
-    html += `<label class="pub-pkg-item" style="${dimStyle}">
+    const versionDropdown = pkg.versions.length > 1
+      ? `<select class="pub-pkg-version-select" data-pkg="${esc(pkg.name)}" ${pkg.already ? 'disabled' : ''}
+          style="background:var(--bg);color:var(--text-dim);border:1px solid var(--border);border-radius:3px;font-family:var(--mono);font-size:10px;padding:1px 4px;margin-left:auto;">
+          ${pkg.versions.map(v => `<option value="${esc(v)}"${v === pkg.latest ? ' selected' : ''}>${esc(v)}</option>`).join('')}
+        </select>`
+      : `<span class="pub-pkg-version">${esc(pkg.latest)}</span>`;
+
+    html += `<div class="pub-pkg-item" style="${dimStyle}">
       <input type="checkbox" ${checked} data-pkg="${esc(pkg.name)}" ${pkg.already ? 'disabled' : ''}>
       <span class="pub-pkg-name">${esc(pkg.name)}</span>
       ${pkg.already ? '<span style="font-size:9px;color:var(--text-dim);">loaded</span>' : ''}
-      <span class="pub-pkg-version">${esc(pkg.version)}</span>
-    </label>`;
+      ${versionDropdown}
+    </div>`;
   }
   list.innerHTML = html;
+
+  // Prevent checkbox toggle when clicking version dropdown
+  list.querySelectorAll('.pub-pkg-version-select').forEach(sel => {
+    sel.addEventListener('click', (e) => e.stopPropagation());
+  });
 
   // Select all / none buttons
   document.getElementById('pubSelectAll').onclick = () => {
@@ -761,22 +773,56 @@ function showPublisherPicker(publisher, packages) {
   // Cancel
   document.getElementById('pubCancelBtn').onclick = () => modal.classList.remove('active');
 
-  // Load selected
+  // Load selected with chosen versions
   document.getElementById('pubLoadBtn').onclick = async () => {
     const selected = [];
     list.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)').forEach(cb => {
-      selected.push(cb.dataset.pkg);
+      const pkgName = cb.dataset.pkg;
+      // Check if there's a version dropdown for this package
+      const versionSelect = list.querySelector(`.pub-pkg-version-select[data-pkg="${pkgName}"]`);
+      const version = versionSelect ? versionSelect.value : null;
+      selected.push({ name: pkgName, version });
     });
     modal.classList.remove('active');
 
     if (selected.length === 0) return;
 
     for (const pkg of selected) {
-      await loadRemoteLayer(`${publisher}/${pkg}`);
+      await loadRemoteLayerWithVersion(publisher, pkg.name, pkg.version);
     }
   };
 
   modal.classList.add('active');
+}
+
+// ── Load remote package with specific version ───
+async function loadRemoteLayerWithVersion(publisher, packageName, version) {
+  const layerName = `${publisher}/${packageName}`;
+  if (layers.find(l => l.name === layerName)) { flashLayer(layers.find(l => l.name === layerName).id); return; }
+
+  showLoading(`Loading ${layerName}@${version}...`);
+  hideError();
+  try {
+    // If no version specified, resolve latest via index
+    if (!version) {
+      const { yaml, name } = await fetchPackageYaml(`${publisher}/${packageName}`);
+      const doc = parser.parse(yaml);
+      addLayer(name, 'remote', doc);
+      hideLoading();
+      return;
+    }
+
+    const pkgUrl = `https://${publisher}/${packageName}/${version}.can.yml`;
+    const res = await fetch(pkgUrl);
+    if (!res.ok) throw new Error(`Failed to fetch ${layerName}@${version} (HTTP ${res.status})`);
+    const yaml = await res.text();
+    const doc = parser.parse(yaml);
+    addLayer(layerName, 'remote', doc);
+    hideLoading();
+  } catch (err) {
+    hideLoading();
+    showError(err.message);
+  }
 }
 
 // ── Load local files ────────────────────────────
