@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canon Browser</title>
+<meta name="description" content="Interactive ontology explorer for Canon Protocol">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --text: #e4e4e7;
+  --text-secondary: #a1a1aa;
+  --text-dim: #71717a;
+  --bg: #0a0a0c;
+  --bg-raised: #111114;
+  --bg-surface: #18181b;
+  --border: #27272a;
+  --border-subtle: #1e1e21;
+  --accent: #60a5fa;
+  --accent-glow: rgba(96, 165, 250, 0.15);
+  --class: #60a5fa;
+  --object-prop: #34d399;
+  --datatype-prop: #fb923c;
+  --annotation-prop: #c084fc;
+  --instance: #f472b6;
+  --datatype: #94a3b8;
+  --unknown: #6b7280;
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top Bar ─────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #0a0a0c;
+}
+
+.brand-text {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.address-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.address-bar:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.address-prefix {
+  padding: 0 0 0 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.address-input {
+  flex: 1;
+  padding: 8px 8px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.address-input::placeholder { color: var(--text-dim); }
+
+.go-btn {
+  padding: 6px 14px;
+  margin: 3px;
+  background: var(--accent);
+  color: #0a0a0c;
+  border: none;
+  border-radius: 5px;
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.go-btn:hover { opacity: 0.85; }
+
+/* ── Main Layout ─────────────────────── */
+.main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Graph Area ──────────────────────── */
+.graph-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.graph-area svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.graph-area svg text {
+  font-family: var(--font);
+  pointer-events: none;
+  user-select: none;
+}
+
+.edge-label {
+  font-size: 9px;
+  fill: var(--text-dim);
+  font-family: var(--mono);
+}
+
+.node-label {
+  font-size: 11px;
+  fill: var(--text-secondary);
+  font-weight: 500;
+}
+
+.node circle {
+  cursor: pointer;
+  stroke-width: 2;
+  transition: opacity 0.2s;
+}
+
+.node circle:hover {
+  filter: brightness(1.2);
+}
+
+.link {
+  stroke: #2a2a2f;
+  stroke-width: 1;
+  transition: opacity 0.2s;
+}
+
+.link-arrow { fill: #2a2a2f; }
+
+/* Dimming when a node is selected */
+.dimmed { opacity: 0.12; }
+.highlighted .link { stroke: var(--accent); stroke-width: 1.5; }
+.highlighted .link-arrow { fill: var(--accent); }
+
+/* ── Detail Panel ────────────────────── */
+.detail-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--bg-raised);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px;
+  color: var(--text-dim);
+  font-size: 13px;
+  gap: 8px;
+}
+
+.detail-empty-icon {
+  font-size: 32px;
+  opacity: 0.4;
+  margin-bottom: 4px;
+}
+
+.detail-header {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.detail-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  word-break: break-word;
+}
+
+.detail-namespace {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.detail-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.detail-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.detail-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.detail-key {
+  font-family: var(--mono);
+  color: var(--text-dim);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.detail-value {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.detail-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.detail-link:hover { text-decoration: underline; }
+
+.detail-connections { padding: 12px 16px; }
+
+.connection-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  margin: 2px 0;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.connection-item:hover { background: var(--bg-surface); }
+
+.connection-type {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.connection-name {
+  color: var(--accent);
+}
+
+.connection-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Legend Bar ───────────────────────── */
+.legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 6px 16px;
+  background: var(--bg-raised);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ── Loading / Error ─────────────────── */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 12, 0.85);
+  z-index: 5;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.overlay.hidden { display: none; }
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.overlay-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.error-text {
+  font-size: 13px;
+  color: #f87171;
+  max-width: 400px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.error-detail {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── Responsive ──────────────────────── */
+@media (max-width: 768px) {
+  .main { flex-direction: column; }
+  .detail-panel {
+    width: 100%;
+    max-height: 40vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+  .brand-text { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <a href="/browser/" class="brand">
+    <div class="brand-icon">C</div>
+    <span class="brand-text">Canon Browser</span>
+  </a>
+  <div class="address-bar">
+    <span class="address-prefix">canon://</span>
+    <input type="text" class="address-input" id="addressInput"
+           placeholder="publisher/package (e.g., canon-protocol.org/core-rdf)"
+           spellcheck="false" autocomplete="off">
+    <button class="go-btn" id="goBtn">Go</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="graph-area" id="graphArea">
+    <svg id="graphSvg"></svg>
+    <div class="overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <div class="overlay-text" id="loadingText">Loading...</div>
+    </div>
+    <div class="overlay hidden" id="errorOverlay">
+      <div class="error-text" id="errorText"></div>
+    </div>
+  </div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-empty" id="detailEmpty">
+      <div class="detail-empty-icon">&#11044;</div>
+      Click a node to inspect it
+      <div style="font-size:11px;margin-top:4px;">Or enter a Canon URI in the address bar</div>
+    </div>
+    <div id="detailContent" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--class)"></div>Class</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--object-prop)"></div>ObjectProperty</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--datatype-prop)"></div>DatatypeProperty</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--annotation-prop)"></div>AnnotationProperty</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--instance)"></div>Instance</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--datatype)"></div>Datatype</div>
+</div>
+
+<script type="module">
+import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
+import { CanonParser, GraphBuilder, InMemoryCanonDocumentRepository }
+  from 'https://esm.sh/@canon-protocol/sdk@8.6.7/browser';
+
+// ── State ───────────────────────────────────────
+let simulation = null;
+let selectedNode = null;
+let currentPackageUri = '';
+
+const parser = new CanonParser();
+
+// ── DOM refs ────────────────────────────────────
+const addressInput = document.getElementById('addressInput');
+const goBtn = document.getElementById('goBtn');
+const graphSvg = document.getElementById('graphSvg');
+const graphArea = document.getElementById('graphArea');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingText = document.getElementById('loadingText');
+const errorOverlay = document.getElementById('errorOverlay');
+const errorText = document.getElementById('errorText');
+const detailPanel = document.getElementById('detailPanel');
+const detailEmpty = document.getElementById('detailEmpty');
+const detailContent = document.getElementById('detailContent');
+
+// ── Color mapping ───────────────────────────────
+const TYPE_COLORS = {
+  Class: '#60a5fa',
+  ObjectProperty: '#34d399',
+  DatatypeProperty: '#fb923c',
+  AnnotationProperty: '#c084fc',
+  Instance: '#f472b6',
+  Datatype: '#94a3b8',
+  Unknown: '#6b7280',
+};
+
+function nodeColor(type) {
+  return TYPE_COLORS[type] || TYPE_COLORS.Unknown;
+}
+
+// ── Package loading ─────────────────────────────
+async function fetchIndex(publisher) {
+  const url = `https://${publisher}/index.txt`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch index from ${publisher} (HTTP ${res.status})`);
+  const text = await res.text();
+  const index = new Map();
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const slash = trimmed.indexOf('/');
+    if (slash === -1) continue;
+    const pkg = trimmed.substring(0, slash);
+    const ver = trimmed.substring(slash + 1);
+    if (!index.has(pkg)) index.set(pkg, []);
+    index.get(pkg).push(ver);
+  }
+  return index;
+}
+
+function highestVersion(versions) {
+  return versions.sort((a, b) => {
+    const pa = a.split('.').map(Number);
+    const pb = b.split('.').map(Number);
+    return (pb[0] - pa[0]) || (pb[1] - pa[1]) || (pb[2] - pa[2]);
+  })[0];
+}
+
+async function loadPackage(uri) {
+  const slash = uri.indexOf('/');
+  if (slash === -1) throw new Error(`Invalid URI: "${uri}". Expected format: publisher/package`);
+  const publisher = uri.substring(0, slash);
+  const packageName = uri.substring(slash + 1);
+
+  showLoading(`Discovering ${publisher}...`);
+  const index = await fetchIndex(publisher);
+
+  const versions = index.get(packageName);
+  if (!versions || versions.length === 0) {
+    throw new Error(`Package "${packageName}" not found on ${publisher}`);
+  }
+
+  const version = highestVersion(versions);
+  showLoading(`Fetching ${packageName}@${version}...`);
+
+  const pkgUrl = `https://${publisher}/${packageName}/${version}.can.yml`;
+  const res = await fetch(pkgUrl);
+  if (!res.ok) throw new Error(`Failed to fetch ${pkgUrl} (HTTP ${res.status})`);
+  const yaml = await res.text();
+
+  showLoading('Parsing...');
+  const doc = parser.parse(yaml);
+
+  showLoading('Building graph...');
+  const graph = GraphBuilder.buildFromDocument(doc);
+
+  return { graph, publisher, packageName, version, doc };
+}
+
+// ── Graph rendering ─────────────────────────────
+function renderGraph(graphData) {
+  if (simulation) simulation.stop();
+
+  const { nodes, edges } = graphData;
+  const svg = d3.select(graphSvg);
+  svg.selectAll('*').remove();
+
+  const width = graphArea.clientWidth;
+  const height = graphArea.clientHeight;
+  svg.attr('viewBox', `0 0 ${width} ${height}`);
+
+  // Arrow marker
+  svg.append('defs').append('marker')
+    .attr('id', 'arrowhead')
+    .attr('viewBox', '0 0 10 6')
+    .attr('refX', 22)
+    .attr('refY', 3)
+    .attr('markerWidth', 8)
+    .attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('d', 'M0,0 L10,3 L0,6')
+    .attr('class', 'link-arrow');
+
+  const g = svg.append('g');
+
+  // Zoom
+  const zoom = d3.zoom()
+    .scaleExtent([0.1, 5])
+    .on('zoom', (e) => g.attr('transform', e.transform));
+  svg.call(zoom);
+
+  // Build D3-compatible data
+  const nodeMap = new Map();
+  const d3Nodes = nodes.map((n, i) => {
+    const obj = { ...n, index: i, x: width / 2 + (Math.random() - 0.5) * 200, y: height / 2 + (Math.random() - 0.5) * 200 };
+    nodeMap.set(n.id, obj);
+    return obj;
+  });
+
+  const d3Links = [];
+  for (const e of edges) {
+    const source = nodeMap.get(e.source);
+    const target = nodeMap.get(e.target);
+    if (source && target) {
+      d3Links.push({ source, target, ...e });
+    }
+  }
+
+  // Count connections for node sizing
+  const connectionCount = new Map();
+  for (const link of d3Links) {
+    connectionCount.set(link.source.id, (connectionCount.get(link.source.id) || 0) + 1);
+    connectionCount.set(link.target.id, (connectionCount.get(link.target.id) || 0) + 1);
+  }
+
+  // Links
+  const linkGroup = g.append('g');
+  const link = linkGroup.selectAll('line')
+    .data(d3Links)
+    .join('line')
+    .attr('class', 'link')
+    .attr('marker-end', 'url(#arrowhead)');
+
+  // Edge labels
+  const edgeLabel = linkGroup.selectAll('text')
+    .data(d3Links)
+    .join('text')
+    .attr('class', 'edge-label')
+    .attr('text-anchor', 'middle')
+    .text(d => d.label);
+
+  // Nodes
+  const nodeGroup = g.append('g');
+  const node = nodeGroup.selectAll('g')
+    .data(d3Nodes)
+    .join('g')
+    .attr('class', 'node')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+  node.append('circle')
+    .attr('r', d => 6 + Math.min((connectionCount.get(d.id) || 0) * 1.5, 12))
+    .attr('fill', d => nodeColor(d.type))
+    .attr('stroke', d => nodeColor(d.type))
+    .attr('stroke-opacity', 0.3)
+    .attr('fill-opacity', 0.85);
+
+  node.append('text')
+    .attr('class', 'node-label')
+    .attr('dy', d => -(10 + Math.min((connectionCount.get(d.id) || 0) * 1.5, 12)))
+    .attr('text-anchor', 'middle')
+    .text(d => d.label);
+
+  // Click handlers
+  node.on('click', (e, d) => {
+    e.stopPropagation();
+    selectNode(d, d3Nodes, d3Links, node, link, edgeLabel);
+  });
+
+  svg.on('click', () => {
+    deselectAll(node, link, edgeLabel);
+  });
+
+  // Simulation
+  simulation = d3.forceSimulation(d3Nodes)
+    .force('link', d3.forceLink(d3Links).distance(100).strength(0.4))
+    .force('charge', d3.forceManyBody().strength(-250))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collide', d3.forceCollide(30))
+    .on('tick', () => {
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
+
+      edgeLabel
+        .attr('x', d => (d.source.x + d.target.x) / 2)
+        .attr('y', d => (d.source.y + d.target.y) / 2 - 4);
+
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+
+  // Store for detail panel reference
+  window._graphState = { d3Nodes, d3Links, node, link, edgeLabel };
+}
+
+// ── Selection ───────────────────────────────────
+function selectNode(d, d3Nodes, d3Links, nodeSelection, linkSelection, edgeLabelSelection) {
+  selectedNode = d;
+
+  const connectedIds = new Set([d.id]);
+  const connections = [];
+  for (const l of d3Links) {
+    if (l.source.id === d.id) {
+      connectedIds.add(l.target.id);
+      connections.push({ type: l.label, name: l.target.label, id: l.target.id, nodeType: l.target.type, direction: 'out' });
+    }
+    if (l.target.id === d.id) {
+      connectedIds.add(l.source.id);
+      connections.push({ type: l.label, name: l.source.label, id: l.source.id, nodeType: l.source.type, direction: 'in' });
+    }
+  }
+
+  nodeSelection.classed('dimmed', n => !connectedIds.has(n.id));
+  linkSelection.classed('dimmed', l => l.source.id !== d.id && l.target.id !== d.id);
+  edgeLabelSelection.classed('dimmed', l => l.source.id !== d.id && l.target.id !== d.id);
+
+  showDetail(d, connections);
+}
+
+function deselectAll(nodeSelection, linkSelection, edgeLabelSelection) {
+  selectedNode = null;
+  nodeSelection.classed('dimmed', false);
+  linkSelection.classed('dimmed', false);
+  edgeLabelSelection.classed('dimmed', false);
+  detailEmpty.style.display = 'flex';
+  detailContent.style.display = 'none';
+}
+
+// ── Detail panel ────────────────────────────────
+function showDetail(d, connections) {
+  detailEmpty.style.display = 'none';
+  detailContent.style.display = 'block';
+
+  const color = nodeColor(d.type);
+  const props = d.properties || {};
+  const propEntries = Object.entries(props).filter(([k]) => k !== 'label' && k !== 'comment');
+
+  let html = `
+    <div class="detail-header">
+      <div class="detail-name">${escHtml(d.label)}</div>
+      <div class="detail-namespace">${escHtml(d.namespace || d.id)}</div>
+      <div class="type-badge" style="background:${color}20;color:${color}">${escHtml(d.type)}</div>
+    </div>
+  `;
+
+  // Comment/description
+  if (props.comment) {
+    html += `
+      <div class="detail-section">
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${escHtml(String(props.comment))}</div>
+      </div>
+    `;
+  }
+
+  // Properties
+  if (propEntries.length > 0) {
+    html += `<div class="detail-section"><div class="detail-section-title">Properties</div>`;
+    for (const [key, value] of propEntries) {
+      const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      const isRef = typeof value === 'string' && !value.includes(' ') && /^[A-Z]/.test(value);
+      html += `
+        <div class="detail-row">
+          <span class="detail-key">${escHtml(key)}</span>
+          <span class="detail-value">${isRef
+            ? `<span class="detail-link" data-ref="${escAttr(value)}">${escHtml(valStr)}</span>`
+            : escHtml(valStr)
+          }</span>
+        </div>
+      `;
+    }
+    html += `</div>`;
+  }
+
+  // Connections
+  if (connections.length > 0) {
+    html += `<div class="detail-connections"><div class="detail-section-title">Connections</div>`;
+    for (const c of connections) {
+      const dir = c.direction === 'out' ? '→' : '←';
+      html += `
+        <div class="connection-item" data-node-id="${escAttr(c.id)}">
+          <div class="connection-dot" style="background:${nodeColor(c.nodeType)}"></div>
+          <span class="connection-type">${dir} ${escHtml(c.type)}</span>
+          <span class="connection-name">${escHtml(c.name)}</span>
+        </div>
+      `;
+    }
+    html += `</div>`;
+  }
+
+  detailContent.innerHTML = html;
+
+  // Connection click handlers
+  detailContent.querySelectorAll('.connection-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const nodeId = el.dataset.nodeId;
+      const state = window._graphState;
+      if (!state) return;
+      const target = state.d3Nodes.find(n => n.id === nodeId);
+      if (target) selectNode(target, state.d3Nodes, state.d3Links, state.node, state.link, state.edgeLabel);
+    });
+  });
+
+  // Reference link click handlers
+  detailContent.querySelectorAll('.detail-link').forEach(el => {
+    el.addEventListener('click', () => {
+      const ref = el.dataset.ref;
+      if (ref && ref.includes('.')) {
+        // Looks like a publisher reference — navigate
+        navigateTo(ref);
+      }
+    });
+  });
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return s.replace(/"/g,'&quot;').replace(/&/g,'&amp;'); }
+
+// ── Navigation ──────────────────────────────────
+async function navigateTo(uri) {
+  uri = uri.trim().replace(/^canon:\/\//, '');
+  if (!uri) return;
+
+  addressInput.value = uri;
+  window.location.hash = uri;
+  currentPackageUri = uri;
+
+  hideError();
+  showLoading('Loading...');
+
+  try {
+    const result = await loadPackage(uri);
+    hideLoading();
+    renderGraph(result.graph);
+  } catch (err) {
+    hideLoading();
+    showError(err.message);
+  }
+}
+
+// ── UI helpers ──────────────────────────────────
+function showLoading(text) {
+  loadingText.textContent = text || 'Loading...';
+  loadingOverlay.classList.remove('hidden');
+}
+
+function hideLoading() {
+  loadingOverlay.classList.add('hidden');
+}
+
+function showError(msg) {
+  errorText.innerHTML = `<div>${escHtml(msg)}</div>`;
+  errorOverlay.classList.remove('hidden');
+}
+
+function hideError() {
+  errorOverlay.classList.add('hidden');
+}
+
+// ── Event handlers ──────────────────────────────
+goBtn.addEventListener('click', () => navigateTo(addressInput.value));
+addressInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') navigateTo(addressInput.value);
+});
+
+window.addEventListener('hashchange', () => {
+  const hash = window.location.hash.slice(1);
+  if (hash && hash !== currentPackageUri) navigateTo(hash);
+});
+
+// ── Init ────────────────────────────────────────
+const initialUri = window.location.hash.slice(1) || 'canon-protocol.org/core-rdf';
+addressInput.value = initialUri;
+navigateTo(initialUri);
+
+</script>
+</body>
+</html>
