@@ -160,6 +160,11 @@ body {
 .legend { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 5px 12px; background: var(--bg-raised); border-top: 1px solid var(--border); flex-shrink: 0; }
 .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-dim); }
 .legend-dot { width: 7px; height: 7px; border-radius: 50%; }
+.color-mode-toggle { display: flex; background: var(--bg); border-radius: 4px; border: 1px solid var(--border); overflow: hidden; margin-right: 12px; flex-shrink: 0; }
+.color-mode-btn { padding: 2px 10px; border: none; background: transparent; color: var(--text-dim); font-family: var(--font); font-size: 10px; cursor: pointer; transition: all 0.1s; }
+.color-mode-btn.active { background: var(--accent); color: #0a0a0c; font-weight: 600; }
+.color-mode-btn:hover:not(.active) { color: var(--text); }
+#legendItems { display: flex; align-items: center; gap: 14px; }
 
 /* ── Overlay ─────────────────── */
 .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(10,10,12,0.85); z-index: 5; flex-direction: column; gap: 10px; }
@@ -267,12 +272,18 @@ body {
 
 <!-- Legend -->
 <div class="legend">
-  <div class="legend-item"><div class="legend-dot" style="background:var(--class)"></div>Class</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--object-prop)"></div>ObjectProperty</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--datatype-prop)"></div>DatatypeProperty</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--annotation-prop)"></div>AnnotationProperty</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--instance)"></div>Instance</div>
-  <div class="legend-item"><div class="legend-dot" style="background:var(--datatype)"></div>Datatype</div>
+  <div class="color-mode-toggle">
+    <button class="color-mode-btn active" data-mode="type">By Type</button>
+    <button class="color-mode-btn" data-mode="package">By Package</button>
+  </div>
+  <div id="legendItems">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--class)"></div>Class</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--object-prop)"></div>ObjectProperty</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--datatype-prop)"></div>DatatypeProperty</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--annotation-prop)"></div>AnnotationProperty</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--instance)"></div>Instance</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--datatype)"></div>Datatype</div>
+  </div>
 </div>
 
 <!-- Paste Modal -->
@@ -322,12 +333,16 @@ let selectedNode = null;
 let colorIndex = 0;
 const publisherIndexCache = new Map(); // publisher → Map<packageName, version[]>
 const collapsedPublishers = new Set(); // publishers with collapsed layer lists
+let colorMode = 'type'; // 'type' or 'package'
 
 const TYPE_COLORS = {
   Class:'#60a5fa', ObjectProperty:'#34d399', DatatypeProperty:'#fb923c',
   AnnotationProperty:'#c084fc', Instance:'#f472b6', Datatype:'#94a3b8', Unknown:'#6b7280'
 };
 function nodeColor(type) { return TYPE_COLORS[type] || TYPE_COLORS.Unknown; }
+function getNodeFill(d) {
+  return colorMode === 'package' ? (d.layerColor || '#6b7280') : nodeColor(d.type);
+}
 function nextLayerColor() { return LAYER_COLORS[colorIndex++ % LAYER_COLORS.length]; }
 
 // ── DOM refs ────────────────────────────────────
@@ -720,9 +735,9 @@ function renderGraph(graphData) {
   // Type circle (inner, colored by entity type)
   node.append('circle')
     .attr('r', d => 6 + Math.min((connCount.get(d.id)||0)*1.5, 10))
-    .attr('fill', d => nodeColor(d.type))
+    .attr('fill', d => getNodeFill(d))
     .attr('fill-opacity', 0.85)
-    .attr('stroke', d => nodeColor(d.type))
+    .attr('stroke', d => getNodeFill(d))
     .attr('stroke-opacity', 0.3);
 
   node.append('text').attr('class', 'node-label')
@@ -1054,6 +1069,44 @@ addressInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadRem
 
 // Layer search filter
 document.getElementById('layerSearch').addEventListener('input', () => renderLayers());
+
+// Color mode toggle
+document.querySelectorAll('.color-mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    colorMode = btn.dataset.mode;
+    document.querySelectorAll('.color-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateLegendItems();
+    // Update existing node colors without full rebuild
+    if (window._graphState) {
+      const { node } = window._graphState;
+      node.selectAll('circle:nth-child(2)')
+        .transition().duration(300)
+        .attr('fill', d => getNodeFill(d))
+        .attr('stroke', d => getNodeFill(d));
+    }
+  });
+});
+
+function updateLegendItems() {
+  const container = document.getElementById('legendItems');
+  if (colorMode === 'type') {
+    container.innerHTML = `
+      <div class="legend-item"><div class="legend-dot" style="background:var(--class)"></div>Class</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--object-prop)"></div>ObjectProperty</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--datatype-prop)"></div>DatatypeProperty</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--annotation-prop)"></div>AnnotationProperty</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--instance)"></div>Instance</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--datatype)"></div>Datatype</div>`;
+  } else {
+    let html = '';
+    for (const layer of layers.filter(l => l.visible)) {
+      const shortName = layer.name.includes('/') ? layer.name.substring(layer.name.indexOf('/') + 1) : layer.name;
+      html += `<div class="legend-item"><div class="legend-dot" style="background:${layer.color}"></div>${esc(shortName)}</div>`;
+    }
+    container.innerHTML = html || '<div class="legend-item" style="color:var(--text-dim);">No layers visible</div>';
+  }
+}
 
 // File input
 document.getElementById('addFileBtn').addEventListener('click', () => fileInput.click());
