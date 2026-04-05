@@ -94,6 +94,19 @@ body {
 .layer-remove { opacity: 0; font-size: 14px; color: var(--text-dim); cursor: pointer; padding: 0 2px; transition: opacity 0.1s; }
 .layer-item:hover .layer-remove { opacity: 0.6; }
 .layer-remove:hover { opacity: 1 !important; color: #f87171; }
+.layer-group { border-bottom: 1px solid var(--border-subtle); }
+.layer-group:last-child { border-bottom: none; }
+.layer-group-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px 4px; cursor: pointer;
+  font-size: 11px; color: var(--text-dim);
+}
+.layer-group-header:hover { background: rgba(255,255,255,0.02); }
+.layer-group-icon { font-size: 8px; flex-shrink: 0; }
+.layer-group-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text-secondary); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+.layer-group-count { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+.layer-check.partial { background: var(--accent); border-color: var(--accent); color: #0a0a0c; opacity: 0.6; }
+.layer-item { padding-left: 28px; }
 .layer-actions {
   padding: 8px 12px; border-top: 1px solid var(--border-subtle);
   display: flex; gap: 4px; flex-wrap: wrap;
@@ -402,6 +415,19 @@ function toggleLayer(id) {
   }
 }
 
+function togglePublisher(publisher) {
+  const pubLayers = layers.filter(l => getPublisher(l.name) === publisher);
+  const allVisible = pubLayers.every(l => l.visible);
+  for (const l of pubLayers) l.visible = !allVisible;
+  renderLayers();
+  rebuildGraph();
+}
+
+function getPublisher(name) {
+  const slash = name.indexOf('/');
+  return slash !== -1 ? name.substring(0, slash) : name;
+}
+
 function flashLayer(id) {
   const el = document.querySelector(`[data-layer-id="${id}"]`);
   if (el) {
@@ -411,41 +437,69 @@ function flashLayer(id) {
 }
 
 function renderLayers() {
-  const remoteLayers = layers.filter(l => l.source === 'remote');
-  const localLayers = layers.filter(l => l.source !== 'remote');
+  if (layers.length === 0) {
+    layerList.innerHTML = '<div style="padding:20px 12px;text-align:center;color:var(--text-dim);font-size:11px;">No layers loaded.<br>Enter a URI above or drop files.</div>';
+    layerTotal.textContent = '';
+    return;
+  }
+
+  // Group layers by publisher
+  const groups = new Map();
+  for (const l of layers) {
+    const pub = getPublisher(l.name);
+    if (!groups.has(pub)) groups.set(pub, []);
+    groups.get(pub).push(l);
+  }
 
   let html = '';
-  if (remoteLayers.length > 0) {
-    html += '<div style="padding:4px 12px 2px;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;">Remote</div>';
-    for (const l of remoteLayers) html += layerItemHtml(l);
-  }
-  if (localLayers.length > 0) {
-    html += '<div style="padding:6px 12px 2px;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;">Local</div>';
-    for (const l of localLayers) html += layerItemHtml(l);
-  }
-  if (layers.length === 0) {
-    html = '<div style="padding:20px 12px;text-align:center;color:var(--text-dim);font-size:11px;">No layers loaded.<br>Enter a URI above or drop files.</div>';
-  }
-  layerList.innerHTML = html;
-  layerTotal.textContent = layers.length > 0 ? `${layers.reduce((s,l) => s + (l.visible ? l.entityCount : 0), 0)} entities` : '';
+  for (const [pub, pubLayers] of groups) {
+    const allVisible = pubLayers.every(l => l.visible);
+    const someVisible = pubLayers.some(l => l.visible);
+    const checkState = allVisible ? 'checked' : (someVisible ? 'partial' : '');
+    const checkIcon = allVisible ? '&#10003;' : (someVisible ? '&#8722;' : '');
+    const entityCount = pubLayers.reduce((s, l) => s + (l.visible ? l.entityCount : 0), 0);
+    const isLocal = pubLayers.some(l => l.source !== 'remote');
+    const sourceIcon = isLocal ? '&#9670;' : '&#9679;';
 
-  // Bind events
-  layerList.querySelectorAll('.layer-check').forEach(el => {
-    el.addEventListener('click', (e) => { e.stopPropagation(); toggleLayer(el.closest('.layer-item').dataset.layerId); });
+    html += `<div class="layer-group" data-publisher="${esc(pub)}">
+      <div class="layer-group-header">
+        <div class="layer-check ${checkState}" data-pub-toggle="${esc(pub)}">${checkIcon}</div>
+        <span class="layer-group-icon">${sourceIcon}</span>
+        <span class="layer-group-name" title="${esc(pub)}">${esc(pub)}</span>
+        <span class="layer-group-count">${entityCount}</span>
+      </div>`;
+    for (const l of pubLayers) {
+      html += layerItemHtml(l);
+    }
+    html += '</div>';
+  }
+
+  layerList.innerHTML = html;
+  layerTotal.textContent = `${layers.reduce((s,l) => s + (l.visible ? l.entityCount : 0), 0)} entities`;
+
+  // Bind layer toggle events
+  layerList.querySelectorAll('.layer-check[data-layer-toggle]').forEach(el => {
+    el.addEventListener('click', (e) => { e.stopPropagation(); toggleLayer(el.dataset.layerToggle); });
   });
+  // Bind publisher group toggle events
+  layerList.querySelectorAll('.layer-check[data-pub-toggle]').forEach(el => {
+    el.addEventListener('click', (e) => { e.stopPropagation(); togglePublisher(el.dataset.pubToggle); });
+  });
+  // Bind remove events
   layerList.querySelectorAll('.layer-remove').forEach(el => {
-    el.addEventListener('click', (e) => { e.stopPropagation(); removeLayer(el.closest('.layer-item').dataset.layerId); });
+    el.addEventListener('click', (e) => { e.stopPropagation(); removeLayer(el.dataset.layerRemove); });
   });
 }
 
 function layerItemHtml(l) {
-  const icon = l.source === 'remote' ? '&#9679;' : '&#9670;';
+  // Show just the package name (strip publisher since it's in the group header)
+  const shortName = l.name.includes('/') ? l.name.substring(l.name.indexOf('/') + 1) : l.name;
   return `<div class="layer-item" data-layer-id="${l.id}">
-    <div class="layer-check ${l.visible ? 'checked' : ''}">${l.visible ? '&#10003;' : ''}</div>
+    <div class="layer-check ${l.visible ? 'checked' : ''}" data-layer-toggle="${l.id}">${l.visible ? '&#10003;' : ''}</div>
     <div class="layer-color" style="background:${l.color}"></div>
-    <div class="layer-name" title="${esc(l.name)}">${esc(l.name)}</div>
+    <div class="layer-name" title="${esc(l.name)}">${esc(shortName)}</div>
     <div class="layer-count">${l.entityCount}</div>
-    <div class="layer-remove" title="Remove layer">&times;</div>
+    <div class="layer-remove" data-layer-remove="${l.id}" title="Remove layer">&times;</div>
   </div>`;
 }
 
