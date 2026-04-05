@@ -782,12 +782,11 @@ function showDetail(d, connections) {
 
 // ── URL hash ────────────────────────────────────
 function updateHash() {
+  suppressHashChange = true;
   const remote = layers.filter(l => l.source === 'remote').map(l => l.name);
   if (remote.length <= 5) {
-    // Short list — show explicit package URIs
     window.location.hash = remote.join(',');
   } else {
-    // Too many — collapse to unique publisher domains
     const publishers = [...new Set(remote.map(getPublisher))];
     window.location.hash = publishers.join(',');
   }
@@ -1039,10 +1038,15 @@ graphArea.addEventListener('drop', (e) => {
 });
 
 // Hash change
+let suppressHashChange = false;
 window.addEventListener('hashchange', () => {
+  if (suppressHashChange) { suppressHashChange = false; return; }
   const uris = loadFromHash();
   const current = new Set(layers.filter(l => l.source === 'remote').map(l => l.name));
-  for (const uri of uris) { if (!current.has(uri)) loadRemoteLayer(uri); }
+  for (const uri of uris) {
+    // Only auto-load package URIs (with slash), not publisher-only entries
+    if (uri.includes('/') && !current.has(uri)) loadRemoteLayer(uri);
+  }
 });
 
 // ── Init ────────────────────────────────────────
