@@ -102,7 +102,8 @@ body {
   font-size: 11px; color: var(--text-dim);
 }
 .layer-group-header:hover { background: rgba(255,255,255,0.02); }
-.layer-group-icon { font-size: 8px; flex-shrink: 0; }
+.layer-group-arrow { font-size: 9px; flex-shrink: 0; color: var(--text-dim); width: 10px; text-align: center; }
+.layer-group-badge { font-family: var(--mono); font-size: 9px; color: var(--text-dim); background: var(--bg-surface); padding: 0 4px; border-radius: 3px; }
 .layer-group-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text-secondary); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
 .layer-group-count { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
 .layer-check.partial { background: var(--accent); border-color: var(--accent); color: #0a0a0c; opacity: 0.6; }
@@ -226,6 +227,11 @@ body {
       <span>Layers</span>
       <span id="layerTotal" style="font-variant-numeric:tabular-nums;"></span>
     </div>
+    <div style="padding:4px 8px;">
+      <input type="text" id="layerSearch" placeholder="Filter layers..."
+        style="width:100%;padding:4px 8px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:11px;outline:none;"
+        spellcheck="false">
+    </div>
     <div class="layer-list" id="layerList"></div>
     <div class="layer-actions">
       <button class="layer-action-btn" id="addFileBtn">+ File</button>
@@ -315,6 +321,7 @@ let simulation = null;
 let selectedNode = null;
 let colorIndex = 0;
 const publisherIndexCache = new Map(); // publisher → Map<packageName, version[]>
+const collapsedPublishers = new Set(); // publishers with collapsed layer lists
 
 const TYPE_COLORS = {
   Class:'#60a5fa', ObjectProperty:'#34d399', DatatypeProperty:'#fb923c',
@@ -507,9 +514,12 @@ function renderLayers() {
     return;
   }
 
-  // Group layers by publisher
+  const searchTerm = (document.getElementById('layerSearch')?.value || '').toLowerCase().trim();
+
+  // Group layers by publisher, filtered by search
   const groups = new Map();
   for (const l of layers) {
+    if (searchTerm && !l.name.toLowerCase().includes(searchTerm)) continue;
     const pub = getPublisher(l.name);
     if (!groups.has(pub)) groups.set(pub, []);
     groups.get(pub).push(l);
@@ -525,18 +535,35 @@ function renderLayers() {
     const isLocal = pubLayers.some(l => l.source !== 'remote');
     const sourceIcon = isLocal ? '&#9670;' : '&#9679;';
 
+    // Auto-collapse publishers with many packages on first render
+    const isNew = !collapsedPublishers.has(pub) && !collapsedPublishers.has('_init_' + pub);
+    if (isNew) {
+      collapsedPublishers.add('_init_' + pub);
+      if (pubLayers.length > 5) collapsedPublishers.add(pub);
+    }
+    // When searching, always expand to show results
+    const collapsed = searchTerm ? false : collapsedPublishers.has(pub);
+    const arrow = collapsed ? '&#9656;' : '&#9662;'; // ▸ or ▾
+
     html += `<div class="layer-group" data-publisher="${esc(pub)}">
-      <div class="layer-group-header">
+      <div class="layer-group-header" data-pub-collapse="${esc(pub)}">
         <div class="layer-check ${checkState}" data-pub-toggle="${esc(pub)}">${checkIcon}</div>
-        <span class="layer-group-icon">${sourceIcon}</span>
+        <span class="layer-group-arrow">${arrow}</span>
         <span class="layer-group-name" title="${esc(pub)}">${esc(pub)}</span>
+        <span class="layer-group-badge">${pubLayers.length}</span>
         <span class="layer-group-count">${entityCount}</span>
       </div>`;
-    const sorted = [...pubLayers].sort((a, b) => a.name.localeCompare(b.name));
-    for (const l of sorted) {
-      html += layerItemHtml(l);
+    if (!collapsed) {
+      const sorted = [...pubLayers].sort((a, b) => a.name.localeCompare(b.name));
+      for (const l of sorted) {
+        html += layerItemHtml(l);
+      }
     }
     html += '</div>';
+  }
+
+  if (groups.size === 0 && searchTerm) {
+    html = `<div style="padding:16px 12px;text-align:center;color:var(--text-dim);font-size:11px;">No layers match "${esc(searchTerm)}"</div>`;
   }
 
   layerList.innerHTML = html;
@@ -557,7 +584,17 @@ function renderLayers() {
   // Bind version switch events
   layerList.querySelectorAll('.layer-version-select').forEach(el => {
     el.addEventListener('change', (e) => { e.stopPropagation(); switchLayerVersion(el.dataset.layerVersion, el.value); });
-    el.addEventListener('click', (e) => e.stopPropagation()); // prevent toggle on click
+    el.addEventListener('click', (e) => e.stopPropagation());
+  });
+  // Bind collapse/expand events (click header, but not the checkbox)
+  layerList.querySelectorAll('[data-pub-collapse]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.layer-check')) return; // let checkbox handle its own click
+      const pub = el.dataset.pubCollapse;
+      if (collapsedPublishers.has(pub)) collapsedPublishers.delete(pub);
+      else collapsedPublishers.add(pub);
+      renderLayers();
+    });
   });
 }
 
@@ -1014,6 +1051,9 @@ function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 // ── Event handlers ──────────────────────────────
 goBtn.addEventListener('click', () => loadRemoteLayer(addressInput.value));
 addressInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadRemoteLayer(addressInput.value); });
+
+// Layer search filter
+document.getElementById('layerSearch').addEventListener('input', () => renderLayers());
 
 // File input
 document.getElementById('addFileBtn').addEventListener('click', () => fileInput.click());
