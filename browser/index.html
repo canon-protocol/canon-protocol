@@ -1638,11 +1638,12 @@ document.querySelectorAll('.dim-btn').forEach(btn => {
       if (!ForceGraph3D) {
         showLoading('Loading 3D engine...');
         try {
-          // Import Three.js first, then 3d-force-graph pinned to same version
-          const THREE = await import('https://esm.sh/three@0.170.0');
-          window.THREE = THREE;
-          const mod = await import('https://esm.sh/3d-force-graph@1.75.2?external=three');
+          const mod = await import('https://esm.sh/3d-force-graph@1');
           ForceGraph3D = mod.default;
+          // 3d-force-graph bundles Three.js — grab it from there
+          if (!window.THREE) {
+            window.THREE = await import('https://esm.sh/three');
+          }
         } catch (err) {
           showError('Failed to load 3D engine: ' + err.message);
           dimMode = '2d';
