@@ -1172,21 +1172,67 @@ function render3D(graphData) {
 
   graph3dInstance = ForceGraph3D()(el)
     .backgroundColor('#0a0a0c')
-    .nodeLabel(n => `${n.label} (${n.type})`)
-    .nodeColor(n => n.color)
-    .nodeVal(n => {
+    // Node labels rendered as 3D text sprites
+    .nodeThreeObject(n => {
+      const group = new window.THREE.Group();
+      // Sphere
       const conns = gLinks.filter(l => (l.source?.id || l.source) === n.id || (l.target?.id || l.target) === n.id).length;
-      return 1 + conns * 0.5;
+      const radius = 3 + Math.min(conns * 0.8, 8);
+      const geo = new window.THREE.SphereGeometry(radius, 16, 12);
+      const mat = new window.THREE.MeshLambertMaterial({ color: n.color, transparent: true, opacity: 0.9 });
+      group.add(new window.THREE.Mesh(geo, mat));
+      // Label sprite
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const fontSize = 28;
+      ctx.font = `${fontSize}px DM Sans, sans-serif`;
+      const textWidth = ctx.measureText(n.label).width;
+      canvas.width = textWidth + 16;
+      canvas.height = fontSize + 12;
+      ctx.font = `${fontSize}px DM Sans, sans-serif`;
+      ctx.fillStyle = '#e4e4e7';
+      ctx.fillText(n.label, 8, fontSize);
+      const texture = new window.THREE.CanvasTexture(canvas);
+      const spriteMat = new window.THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+      const sprite = new window.THREE.Sprite(spriteMat);
+      sprite.scale.set(canvas.width / 6, canvas.height / 6, 1);
+      sprite.position.set(0, radius + 4, 0);
+      group.add(sprite);
+      return group;
     })
-    .nodeOpacity(0.9)
+    .nodeLabel(n => `${n.label} (${n.type})`)
     .linkColor(l => l.color)
-    .linkWidth(0.5)
-    .linkDirectionalArrowLength(3.5)
+    .linkWidth(0.4)
+    .linkDirectionalArrowLength(3)
     .linkDirectionalArrowRelPos(1)
-    .linkDirectionalParticles(l => (l.type === 'objectRelationship' || l.type === 'propertyValue') ? 2 : 0)
-    .linkDirectionalParticleWidth(1.5)
-    .linkDirectionalParticleColor(() => '#60a5fa')
+    .linkDirectionalParticles(0)
     .linkLabel(l => l.label)
+    // Link labels as 3D text (shown on hover via linkLabel)
+    .linkThreeObjectExtend(true)
+    .linkThreeObject(l => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const fontSize = 20;
+      ctx.font = `${fontSize}px JetBrains Mono, monospace`;
+      const text = l.label || '';
+      const textWidth = ctx.measureText(text).width;
+      canvas.width = textWidth + 8;
+      canvas.height = fontSize + 8;
+      ctx.font = `${fontSize}px JetBrains Mono, monospace`;
+      ctx.fillStyle = l.type === 'objectRelationship' || l.type === 'propertyValue' ? '#60a5fa' : '#71717a';
+      ctx.fillText(text, 4, fontSize);
+      const texture = new window.THREE.CanvasTexture(canvas);
+      const spriteMat = new window.THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+      const sprite = new window.THREE.Sprite(spriteMat);
+      sprite.scale.set(canvas.width / 8, canvas.height / 8, 1);
+      return sprite;
+    })
+    .linkPositionUpdate((sprite, { start, end }) => {
+      if (sprite) {
+        const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2, z: (start.z + end.z) / 2 };
+        Object.assign(sprite.position, mid);
+      }
+    })
     .onNodeClick(n => {
       show3DDetail(n, gLinks);
     })
@@ -1194,7 +1240,7 @@ function render3D(graphData) {
 
   // Warm up the simulation
   graph3dInstance.d3Force('charge').strength(-30);
-  graph3dInstance.d3Force('link').distance(40);
+  graph3dInstance.d3Force('link').distance(50);
 }
 
 function show3DDetail(d, links) {
@@ -1592,8 +1638,12 @@ document.querySelectorAll('.dim-btn').forEach(btn => {
       if (!ForceGraph3D) {
         showLoading('Loading 3D engine...');
         try {
-          const mod = await import('https://esm.sh/3d-force-graph@1');
+          const [mod, three] = await Promise.all([
+            import('https://esm.sh/3d-force-graph@1'),
+            import('https://esm.sh/three@0.169')
+          ]);
           ForceGraph3D = mod.default;
+          window.THREE = three;
         } catch (err) {
           showError('Failed to load 3D engine: ' + err.message);
           dimMode = '2d';
