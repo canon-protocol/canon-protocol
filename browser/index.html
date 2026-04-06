@@ -1638,12 +1638,11 @@ document.querySelectorAll('.dim-btn').forEach(btn => {
       if (!ForceGraph3D) {
         showLoading('Loading 3D engine...');
         try {
-          const [mod, three] = await Promise.all([
-            import('https://esm.sh/3d-force-graph@1'),
-            import('https://esm.sh/three@0.169')
-          ]);
+          // Import Three.js first, then 3d-force-graph pinned to same version
+          const THREE = await import('https://esm.sh/three@0.170.0');
+          window.THREE = THREE;
+          const mod = await import('https://esm.sh/3d-force-graph@1.75.2?external=three');
           ForceGraph3D = mod.default;
-          window.THREE = three;
         } catch (err) {
           showError('Failed to load 3D engine: ' + err.message);
           dimMode = '2d';
@@ -1693,8 +1692,12 @@ document.querySelectorAll('.color-mode-btn').forEach(btn => {
     colorMode = btn.dataset.mode;
     document.querySelectorAll('.color-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    // Update existing node colors without full rebuild
-    if (window._graphState) {
+
+    if (dimMode === '3d' && window._lastGraphData) {
+      // 3D: rebuild the scene with new colors
+      render3D(window._lastGraphData);
+    } else if (window._graphState) {
+      // 2D: transition node colors
       const { node } = window._graphState;
       node.selectAll('circle:nth-child(2)')
         .transition().duration(300)
