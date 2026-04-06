@@ -735,11 +735,18 @@ async function rebuildGraph() {
   }
 
   const repo = new InMemoryCanonDocumentRepository(parser);
+
+  // Load all visible layers into the repository
   for (const layer of visible) {
     const ns = layer.document.metadata?.namespace_;
     const id = ns ? `${ns.publisher}/${ns.package_}` : layer.name;
     await repo.saveDocumentAsync(layer.document, id);
   }
+
+  // Auto-resolve transitive imports so the COM can classify types correctly.
+  // The SDK requires imported packages (especially core-rdf, core-owl) to be
+  // loaded in the repository for proper type resolution.
+  await resolveImports(repo);
 
   const graph = await GraphBuilder.buildFromRepository(repo);
 
@@ -755,6 +762,64 @@ async function rebuildGraph() {
 
   renderGraph(graph);
   renderMissingDeps();
+}
+
+// ── Import resolution ───────────────────────────
+// Recursively load all transitive imports into the repository.
+// Required so the COM can resolve type URIs from core packages.
+async function resolveImports(repo) {
+  const loadedPackages = new Set();
+  const docs = await repo.getAllDocumentsAsync();
+  for (const doc of docs) {
+    const ns = doc.metadata?.namespace_;
+    if (ns) loadedPackages.add(`${ns.publisher}/${ns.package_}`);
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const allDocs = await repo.getAllDocumentsAsync();
+    for (const doc of allDocs) {
+      const imports = doc.metadata?.imports;
+      if (!imports) continue;
+      for (const [publisher, importList] of Object.entries(imports)) {
+        for (const imp of importList) {
+          const pkgKey = `${publisher}/${imp.packageName}`;
+          if (loadedPackages.has(pkgKey)) continue;
+          loadedPackages.add(pkgKey);
+          try {
+            const config = await configResolver.getConfig(publisher);
+            const indexUrl = configResolver.resolveIndexUrl(publisher, config);
+            const indexRes = await fetch(indexUrl);
+            if (!indexRes.ok) continue;
+            const indexText = await indexRes.text();
+
+            // Find highest compatible version
+            const versions = [];
+            for (const line of indexText.split('\n')) {
+              const t = line.trim();
+              if (!t || t.startsWith('#')) continue;
+              const s = t.indexOf('/');
+              if (s === -1) continue;
+              if (t.substring(0, s) === imp.packageName) versions.push(t.substring(s + 1));
+            }
+            if (versions.length === 0) continue;
+            const version = sortVersionsDesc(versions)[0];
+
+            const pkgUrl = configResolver.resolvePackageUrl(publisher, imp.packageName, version, config);
+            const pkgRes = await fetch(pkgUrl);
+            if (!pkgRes.ok) continue;
+            const yaml = await pkgRes.text();
+            const importedDoc = parser.parse(yaml);
+            await repo.saveDocumentAsync(importedDoc, pkgKey);
+            changed = true; // new doc may have its own imports
+          } catch {
+            // Silently skip unresolvable imports — missing deps UI will show them
+          }
+        }
+      }
+    }
+  }
 }
 
 // ── D3 Graph rendering ──────────────────────────
